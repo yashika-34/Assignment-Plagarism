@@ -928,9 +928,11 @@
     </a>
 
     <div class="rep-links">
-      <a href="index.html" class="rep-link">Dashboard</a>
-      <a href="CheckAssign.html" class="rep-link">New Check</a>
+      <a href="index.html" class="rep-link">Home</a>
+      <a href="CheckAssign.html" class="rep-link">Check Assignment</a>
+      <a href="DetailedReport.html" class="rep-link" style="color:var(--primary);font-weight:700;">Detailed Report</a>
       <a href="history.html" class="rep-link">History</a>
+      <a href="profile.html" class="rep-link">Profile</a>
     </div>
 
     <div class="rep-nav-actions">
@@ -1116,11 +1118,21 @@
          ======================================================== -->
     <div class="tab-pane" id="tab-typos">
       <div class="typos-container">
-        <div class="typos-summary-banner">
-          <div class="typos-summary-icon">✏️</div>
-          <div class="typos-summary-text">
-            <h4 id="typosBannerHeading">Spelling & Typo Analysis</h4>
-            <p id="typosBannerDesc">Detected words that match common English & academic spelling errors.</p>
+        <div class="typos-summary-banner" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;">
+          <div style="display:flex;align-items:center;gap:16px;">
+            <div class="typos-summary-icon">✏️</div>
+            <div class="typos-summary-text">
+              <h4 id="typosBannerHeading">Spelling & Typo Analysis</h4>
+              <p id="typosBannerDesc">Detected words that match common English & academic spelling errors.</p>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button type="button" class="btn btn-outline" id="downloadCleanBtnA" style="font-size:13px;padding:8px 14px;">
+              📥 Fix & Download Doc A
+            </button>
+            <button type="button" class="btn btn-primary" id="downloadCleanBtnB" style="font-size:13px;padding:8px 14px;">
+              📥 Fix & Download Doc B
+            </button>
           </div>
         </div>
 

@@ -84,6 +84,51 @@ export async function addfiles(event, filelist, itemstosave) {
   }
 }
 
+// Extract text from .txt, .pdf, or .docx files
+export async function extractFileText(file) {
+  if (!file) return "";
+  const name = (file.name || "").toLowerCase();
+
+  // 1. PDF files
+  if (name.endsWith(".pdf") && window.pdfjsLib) {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
+      const pdf = await loadingTask.promise;
+      let fullText = "";
+
+      for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const textContent = await page.getTextContent();
+        const pageStrings = textContent.items.map(function (item) { return item.str; });
+        fullText += pageStrings.join(" ") + "\n\n";
+      }
+      return fullText.trim();
+    } catch (err) {
+      console.warn("PDF extraction notice:", err);
+    }
+  }
+
+  // 2. Word DOCX files
+  if (name.endsWith(".docx") && window.mammoth) {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await window.mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+      return (result.value || "").trim();
+    } catch (err) {
+      console.warn("DOCX extraction notice:", err);
+    }
+  }
+
+  // 3. Plain text / fallback
+  try {
+    return await file.text();
+  } catch (err) {
+    console.error("Text extraction failed:", err);
+    return "";
+  }
+}
+
 // Read files and folders from drag and drop
 export async function processEntry(entry, fileList) {
   if (entry.isFile) {

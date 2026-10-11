@@ -24,6 +24,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   setupTabs();
   setupToggles();
   setupSearch();
+  setupDownloadClean();
 
   await loadAndRenderReport();
 });
@@ -501,6 +502,60 @@ function renderSummaryDetails(similarity, phraseCount, typoCount) {
       ? "Writing mechanics are clean with 0 identified spelling errors."
       : `${typoCount} spelling mistakes detected. We recommend correcting these typos before final submission.`;
   }
+}
+
+// =========================================
+// DOWNLOAD CORRECTED DOCUMENT
+// =========================================
+function setupDownloadClean() {
+  const btnA = document.getElementById("downloadCleanBtnA");
+  const btnB = document.getElementById("downloadCleanBtnB");
+
+  if (btnA) {
+    btnA.addEventListener("click", function () {
+      if (!currentReport) return;
+      const textA = currentReport.textA || "";
+      const filenames = currentReport.filenames || currentReport.files || ["Document_A.txt"];
+      downloadCorrectedDocument(textA, currentTyposA, filenames[0]);
+    });
+  }
+
+  if (btnB) {
+    btnB.addEventListener("click", function () {
+      if (!currentReport) return;
+      const textB = currentReport.textB || "";
+      const filenames = currentReport.filenames || currentReport.files || ["", "Document_B.txt"];
+      downloadCorrectedDocument(textB, currentTyposB, filenames[1] || "Document_B.txt");
+    });
+  }
+}
+
+function downloadCorrectedDocument(text, typos, filename) {
+  if (!text) {
+    alert("No document text to export.");
+    return;
+  }
+
+  let cleanText = text;
+  // Sort typos descending by index to avoid index shifting
+  const sorted = [...(typos || [])].sort(function (a, b) {
+    return b.startIndex - a.startIndex;
+  });
+
+  for (let i = 0; i < sorted.length; i++) {
+    const t = sorted[i];
+    cleanText = cleanText.substring(0, t.startIndex) + t.suggestion + cleanText.substring(t.endIndex);
+  }
+
+  const blob = new Blob([cleanText], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const downloadAnchor = document.createElement("a");
+  downloadAnchor.href = url;
+  downloadAnchor.download = "Corrected_" + (filename || "assignment.txt");
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  document.body.removeChild(downloadAnchor);
+  URL.revokeObjectURL(url);
 }
 
 // =========================================

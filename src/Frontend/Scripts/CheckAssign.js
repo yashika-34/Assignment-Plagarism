@@ -14,7 +14,7 @@ let currentuser = localStorage.getItem("loggedIn");
 
 if (currentuser == null) {
   alert("Login first");
-  window.location.href = "../Templates/index.html";
+  window.location.href = "index.html";
 }
 
 
@@ -32,6 +32,7 @@ import {
   detectSpellingMistakes,
   extractCommonPhrases,
   highlightTextWithMatchesAndTypos,
+  extractFileText,
 } from "../../Backend/CheckBackend.js";
 
 
@@ -1383,7 +1384,7 @@ if (analyzeBtn) {
           try {
 
             content =
-              await file.text();
+              await extractFileText(file);
 
           } catch (error) {
 
@@ -2871,6 +2872,29 @@ if (viewReportBtn) {
     }
   );
 }
+
+// Profile dropdown & logout listeners
+const profileBtn = document.getElementById("profileButton");
+const profileMenu = document.getElementById("profileMenu");
+if (profileBtn && profileMenu) {
+  profileBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    profileMenu.classList.toggle("show");
+  });
+  document.addEventListener("click", function () {
+    profileMenu.classList.remove("show");
+  });
+}
+
+const logoutBtn = document.getElementById("logoutButton");
+const mobileLogoutBtn = document.getElementById("mobileLogoutButton");
+function handleLogout() {
+  localStorage.removeItem("loggedIn");
+  localStorage.removeItem("userEmail");
+  window.location.href = "index.html";
+}
+if (logoutBtn) logoutBtn.addEventListener("click", handleLogout);
+if (mobileLogoutBtn) mobileLogoutBtn.addEventListener("click", handleLogout);
 
 if (newAnalysisBtn) {
 

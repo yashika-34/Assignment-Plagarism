@@ -31,7 +31,7 @@ const FILERESULT_API = `${API_BASE}/fileresult`;
 const loggedIn = localStorage.getItem("loggedIn");
 
 if (!loggedIn) {
-    window.location.href = "../Templates/index.html";
+    window.location.href = "index.html";
 }
 
 
