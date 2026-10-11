@@ -6,6 +6,7 @@ import {
   logoutUser,
   updateNavbar,
   closeAuth,
+  showFormError,
 } from "../../Backend/HomeBackend.js";
 
 // =========================================

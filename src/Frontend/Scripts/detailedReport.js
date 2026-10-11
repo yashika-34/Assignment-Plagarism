@@ -1,1682 +1,569 @@
-/* ============================================================
-   ASSIGNCHECK — DETAILED REPORT
-   Dynamic JSON / SessionStorage Based Report Renderer
-   ============================================================ */
+// detailedReport.js
+// Logic for DetailedReport.html
+// Renders similarity highlights, common phrases, and spelling mistakes
 
-"use strict";
+import {
+  detectSpellingMistakes,
+  extractCommonPhrases,
+  highlightTextWithMatchesAndTypos
+} from "../../Backend/SpellChecker.js";
 
-/* ============================================================
-   STORAGE CONFIG
-============================================================ */
+// =========================================
+// GLOBAL STATE
+// =========================================
+let currentReport = null;
+let currentPhrases = [];
+let currentTyposA = [];
+let currentTyposB = [];
+let allTypos = [];
 
-const REPORT_STORAGE_KEY = "reportData";
+// =========================================
+// INITIALIZE REPORT ON DOM LOAD
+// =========================================
+document.addEventListener("DOMContentLoaded", async function () {
+  setupTabs();
+  setupToggles();
+  setupSearch();
 
-/* ============================================================
-   DEFAULT EMPTY DATA
-   No fake/hardcoded report values are used.
-============================================================ */
-
-const EMPTY_REPORT = {
-  fileName: "",
-  fileType: "",
-  fileSize: 0,
-  words: 0,
-  pages: 0,
-  analyzedAt: "",
-
-  similarity: 0,
-  matchingSections: 0,
-
-  aiContent: 0,
-  aiConfidence: 0,
-
-  spellingMistakes: 0,
-
-  sources: [],
-
-  filters: {
-    copiedContent: 0,
-    quotation: 0,
-    correctCitation: 0,
-    bibliography: 0,
-    commonTerminology: 0,
-    assignmentTemplate: 0
-  },
-
-  findings: [],
-
-  textAnalysis: []
-};
-
-
-/* ============================================================
-   DOM READY
-============================================================ */
-
-document.addEventListener("DOMContentLoaded", () => {
-
-  const report = loadReportData();
-
-  if (!report) {
-    showNoReportMessage();
-    return;
-  }
-
-  renderReport(report);
-
+  await loadAndRenderReport();
 });
 
+// =========================================
+// TAB SWITCHING LOGIC
+// =========================================
+function setupTabs() {
+  const tabButtons = document.querySelectorAll(".tab-btn");
+  const tabPanes = document.querySelectorAll(".tab-pane");
 
-/* ============================================================
-   LOAD JSON FROM SESSION STORAGE
-============================================================ */
+  for (let i = 0; i < tabButtons.length; i++) {
+    tabButtons[i].addEventListener("click", function () {
+      const targetId = this.getAttribute("data-tab");
 
-function loadReportData() {
+      // Deactivate all
+      for (let j = 0; j < tabButtons.length; j++) {
+        tabButtons[j].classList.remove("active");
+      }
+      for (let j = 0; j < tabPanes.length; j++) {
+        tabPanes[j].classList.remove("active");
+      }
 
-  try {
-
-    const rawData = sessionStorage.getItem(REPORT_STORAGE_KEY);
-
-    if (!rawData) {
-      console.warn("No reportData found in sessionStorage.");
-      return null;
-    }
-
-    const parsedData = JSON.parse(rawData);
-
-    return normalizeReportData(parsedData);
-
-  } catch (error) {
-
-    console.error(
-      "AssignCheck: Unable to load reportData",
-      error
-    );
-
-    return null;
+      // Activate clicked
+      this.classList.add("active");
+      const targetPane = document.getElementById(targetId);
+      if (targetPane !== null) {
+        targetPane.classList.add("active");
+      }
+    });
   }
 }
 
+// =========================================
+// TOGGLE HIGHLIGHTS LOGIC
+// =========================================
+function setupToggles() {
+  const toggleMatches = document.getElementById("toggleMatches");
+  const toggleTypos = document.getElementById("toggleTypos");
 
-/* ============================================================
-   NORMALIZE DATA
-   Allows different property names from backend.
-============================================================ */
+  function onToggleChange() {
+    if (!currentReport) return;
 
-function normalizeReportData(data) {
+    const showMatches = toggleMatches ? toggleMatches.checked : true;
+    const showTypos = toggleTypos ? toggleTypos.checked : true;
 
-  const report = {
-    ...EMPTY_REPORT,
-    ...data
-  };
+    renderDocumentTexts(showMatches, showTypos);
+  }
 
+  if (toggleMatches !== null) {
+    toggleMatches.addEventListener("change", onToggleChange);
+  }
 
-  /* ----------------------------------------------------------
-     BASIC FILE DATA
-  ---------------------------------------------------------- */
+  if (toggleTypos !== null) {
+    toggleTypos.addEventListener("change", onToggleChange);
+  }
+}
 
-  report.fileName =
-    data.fileName ||
-    data.filename ||
-    data.name ||
-    "";
+// =========================================
+// SEARCH COMMON PHRASES
+// =========================================
+function setupSearch() {
+  const searchInput = document.getElementById("phrasesSearch");
 
-  report.fileType =
-    data.fileType ||
-    data.type ||
-    getFileExtension(report.fileName);
+  if (searchInput !== null) {
+    searchInput.addEventListener("input", function () {
+      const query = this.value.trim().toLowerCase();
+      filterPhrases(query);
+    });
+  }
+}
 
+function filterPhrases(query) {
+  const phrasesGrid = document.getElementById("phrasesGrid");
+  if (!phrasesGrid) return;
 
-  report.fileSize =
-    Number(
-      data.fileSize ||
-      data.size ||
-      0
-    );
+  if (!query) {
+    renderPhrasesList(currentPhrases);
+    return;
+  }
 
+  const filtered = [];
+  for (let i = 0; i < currentPhrases.length; i++) {
+    if (currentPhrases[i].phrase.toLowerCase().includes(query)) {
+      filtered.push(currentPhrases[i]);
+    }
+  }
 
-  report.words =
-    Number(
-      data.words ||
-      data.wordCount ||
-      data.totalWords ||
-      0
-    );
+  renderPhrasesList(filtered);
+}
 
+// =========================================
+// LOAD REPORT DATA (FROM URL, SESSION, OR DB)
+// =========================================
+async function loadAndRenderReport() {
+  let report = null;
 
-  report.pages =
-    Number(
-      data.pages ||
-      data.pageCount ||
-      0
-    );
+  // 1. Try URL query param ?id=...
+  const urlParams = new URLSearchParams(window.location.search);
+  const reportId = urlParams.get("id");
 
+  if (reportId) {
+    try {
+      const response = await fetch("http://localhost:3000/reports/" + encodeURIComponent(reportId));
+      if (response.ok) {
+        report = await response.json();
+      }
+    } catch (e) {
+      console.warn("Could not fetch report by ID:", e);
+    }
+  }
 
-  report.analyzedAt =
-    data.analyzedAt ||
-    data.analysisDate ||
-    data.date ||
-    new Date().toISOString();
+  // 2. Try sessionStorage "reportData"
+  if (!report) {
+    try {
+      const stored = sessionStorage.getItem("reportData");
+      if (stored) {
+        report = JSON.parse(stored);
+      }
+    } catch (e) {
+      console.warn("Session reportData error:", e);
+    }
+  }
 
+  // 3. Try sessionStorage "lastAnalysisResult"
+  if (!report) {
+    try {
+      const lastRes = sessionStorage.getItem("lastAnalysisResult");
+      if (lastRes) {
+        report = JSON.parse(lastRes);
+      }
+    } catch (e) {
+      console.warn("Session lastAnalysisResult error:", e);
+    }
+  }
 
-  /* ----------------------------------------------------------
-     SIMILARITY
-  ---------------------------------------------------------- */
+  // 4. Try loading from database fileresult fallback
+  if (!report) {
+    const userEmail = localStorage.getItem("userEmail");
+    if (userEmail) {
+      try {
+        const response = await fetch("http://localhost:3000/fileresult?email=" + encodeURIComponent(userEmail));
+        if (response.ok) {
+          const list = await response.json();
+          if (list && list.length > 0 && Array.isArray(list[0].filesprocesed) && list[0].filesprocesed.length > 0) {
+            const arr = list[0].filesprocesed;
+            report = arr[arr.length - 1];
+          }
+        }
+      } catch (e) {
+        console.warn("Database fallback error:", e);
+      }
+    }
+  }
 
-  report.similarity = normalizePercentage(
-    data.similarity ??
-    data.overallSimilarity ??
-    data.plagiarism ??
-    0
-  );
+  // If still no report, generate demo sample report for preview
+  if (!report) {
+    report = getDemoReport();
+  }
 
+  currentReport = report;
+  renderReportDetails(report);
+}
 
-  report.matchingSections =
-    Number(
-      data.matchingSections ??
-      data.matches ??
-      data.matchCount ??
-      0
-    );
+// =========================================
+// MAIN RENDER FUNCTION
+// =========================================
+function renderReportDetails(report) {
+  // Extract filenames
+  let fileAName = "Document 1.txt";
+  let fileBName = "Document 2.txt";
 
+  if (Array.isArray(report.filenames) && report.filenames.length >= 2) {
+    fileAName = report.filenames[0];
+    fileBName = report.filenames[1];
+  } else if (Array.isArray(report.files) && report.files.length >= 2) {
+    fileAName = report.files[0];
+    fileBName = report.files[1];
+  }
 
-  /* ----------------------------------------------------------
-     AI
-  ---------------------------------------------------------- */
+  const textA = report.textA || "";
+  const textB = report.textB || "";
 
-  report.aiContent = normalizePercentage(
-    data.aiContent ??
-    data.aiPercentage ??
-    data.aiScore ??
-    data.aiGenerated ??
-    0
-  );
+  // Similarity score
+  let similarity = 0;
+  if (report.roundedscore !== undefined) {
+    similarity = parseFloat(report.roundedscore);
+  } else if (report.similarity !== undefined) {
+    similarity = parseFloat(report.similarity);
+  }
+  similarity = Math.round(similarity * 10) / 10;
 
-
-  report.aiConfidence = normalizePercentage(
-    data.aiConfidence ??
-    data.confidence ??
-    0
-  );
-
-
-  /* ----------------------------------------------------------
-     SPELLING
-  ---------------------------------------------------------- */
-
-  report.spellingMistakes =
-    Number(
-      data.spellingMistakes ??
-      data.spellingErrors ??
-      data.spelling ??
-      0
-    );
-
-
-  /* ----------------------------------------------------------
-     SOURCES
-  ---------------------------------------------------------- */
-
-  report.sources =
-    Array.isArray(data.sources)
-      ? data.sources
+  // Extract matches
+  const matchesA = Array.isArray(report.filefirstmatches)
+    ? report.filefirstmatches
+    : Array.isArray(report.matchesA)
+      ? report.matchesA
       : [];
 
+  // Detect spelling mistakes
+  currentTyposA = detectSpellingMistakes(textA, fileAName);
+  currentTyposB = detectSpellingMistakes(textB, fileBName);
+  allTypos = currentTyposA.concat(currentTyposB);
 
-  /* ----------------------------------------------------------
-     FILTERS
-  ---------------------------------------------------------- */
+  // Extract common phrases
+  currentPhrases = extractCommonPhrases(matchesA, textA, textB);
 
-  report.filters = normalizeFilters(
-    data.filters || data.plagiarismFilters || {}
-  );
+  // Total words
+  const wordsA = textA ? textA.trim().split(/\s+/).length : 0;
+  const wordsB = textB ? textB.trim().split(/\s+/).length : 0;
+  const totalWords = wordsA + wordsB;
 
+  // 1. Update Header Information
+  const subDocA = document.getElementById("subDocA");
+  const subDocB = document.getElementById("subDocB");
+  if (subDocA) subDocA.textContent = fileAName;
+  if (subDocB) subDocB.textContent = fileBName;
 
-  /* ----------------------------------------------------------
-     FINDINGS
-  ---------------------------------------------------------- */
+  const docAName = document.getElementById("docAName");
+  const docBName = document.getElementById("docBName");
+  if (docAName) docAName.textContent = fileAName;
+  if (docBName) docBName.textContent = fileBName;
 
-  report.findings =
-    Array.isArray(data.findings)
-      ? data.findings
-      : generateFindings(report);
+  const docAMeta = document.getElementById("docAMeta");
+  const docBMeta = document.getElementById("docBMeta");
+  if (docAMeta) docAMeta.textContent = wordsA.toLocaleString() + " words";
+  if (docBMeta) docBMeta.textContent = wordsB.toLocaleString() + " words";
 
-
-  /* ----------------------------------------------------------
-     TEXT ANALYSIS
-  ---------------------------------------------------------- */
-
-  report.textAnalysis =
-    Array.isArray(data.textAnalysis)
-      ? data.textAnalysis
-      : [];
-
-
-  return report;
-}
-
-
-/* ============================================================
-   NORMALIZE FILTERS
-============================================================ */
-
-function normalizeFilters(filters) {
-
-  return {
-
-    copiedContent:
-      Number(
-        filters.copiedContent ??
-        filters.copied ??
-        filters.copied_content ??
-        0
-      ),
-
-    quotation:
-      Number(
-        filters.quotation ??
-        filters.quotes ??
-        0
-      ),
-
-    correctCitation:
-      Number(
-        filters.correctCitation ??
-        filters.citation ??
-        filters.correct_citation ??
-        0
-      ),
-
-    bibliography:
-      Number(
-        filters.bibliography ??
-        filters.references ??
-        0
-      ),
-
-    commonTerminology:
-      Number(
-        filters.commonTerminology ??
-        filters.commonTerms ??
-        filters.common_terminology ??
-        0
-      ),
-
-    assignmentTemplate:
-      Number(
-        filters.assignmentTemplate ??
-        filters.template ??
-        filters.assignment_template ??
-        0
-      )
-
-  };
-}
-
-
-/* ============================================================
-   MAIN RENDER FUNCTION
-============================================================ */
-
-function renderReport(report) {
-
-  renderFileInfo(report);
-
-  renderMainScore(report);
-
-  renderSummary(report);
-
-  renderMetrics(report);
-
-  renderFilters(report);
-
-  renderAI(report);
-
-  renderSources(report);
-
-  renderFindings(report);
-
-  renderTextAnalysis(report);
-
-  renderFooter(report);
-
-}
-
-
-/* ============================================================
-   FILE INFORMATION
-============================================================ */
-
-function renderFileInfo(report) {
-
-  const fileName =
-    document.getElementById("reportFileName");
-
-  if (fileName) {
-
-    fileName.textContent =
-      report.fileName || "Assignment";
-
-  }
-
-
-  const fileIcon =
-    document.querySelector(".file-icon");
-
-  if (fileIcon) {
-
-    fileIcon.textContent =
-      report.fileType
-        ? report.fileType.toUpperCase()
-        : "FILE";
-
-  }
-
-
-  const fileMeta =
-    document.querySelector(".file-meta");
-
-  if (fileMeta) {
-
-    const parts = [];
-
-    if (report.words > 0) {
-      parts.push(
-        `${formatNumber(report.words)} words`
-      );
-    }
-
-    if (report.pages > 0) {
-      parts.push(
-        `${report.pages} pages`
-      );
-    }
-
-    if (report.fileSize > 0) {
-      parts.push(
-        formatFileSize(report.fileSize)
-      );
-    }
-
-    fileMeta.textContent =
-      parts.length
-        ? `Student Assignment · ${parts.join(" · ")}`
-        : "Student Assignment";
-
-  }
-
-
-  const reportDate =
-    document.querySelector(".report-date");
-
+  const reportDate = document.getElementById("reportDate");
   if (reportDate) {
-
-    reportDate.textContent =
-      report.analyzedAt
-        ? `Analyzed ${formatDate(report.analyzedAt)}`
-        : "";
-
-  }
-
-}
-
-
-/* ============================================================
-   MAIN SCORE
-============================================================ */
-
-function renderMainScore(report) {
-
-  const score =
-    document.getElementById("overallSimilarity");
-
-  if (score) {
-
-    score.textContent =
-      `${report.similarity}%`;
-
-  }
-
-
-  const ring =
-    document.querySelector(".score-ring");
-
-  if (ring) {
-
-    const degree =
-      (report.similarity / 100) * 360;
-
-    ring.style.background = `
-      conic-gradient(
-        var(--primary) 0deg,
-        var(--primary) ${degree}deg,
-        #e5e7eb ${degree}deg,
-        #e5e7eb 360deg
-      )
-    `;
-
-  }
-
-
-  const status =
-    document.querySelector(".score-status");
-
-  if (status) {
-
-    status.textContent =
-      getSimilarityStatus(report.similarity);
-
-    updateSimilarityStatusClass(
-      status,
-      report.similarity
-    );
-
-  }
-
-}
-
-
-/* ============================================================
-   SIMILARITY STATUS
-============================================================ */
-
-function getSimilarityStatus(value) {
-
-  if (value <= 10) {
-    return "Low Similarity";
-  }
-
-  if (value <= 25) {
-    return "Moderate Similarity";
-  }
-
-  if (value <= 50) {
-    return "High Similarity";
-  }
-
-  return "Very High Similarity";
-}
-
-
-/* ============================================================
-   STATUS COLOR
-============================================================ */
-
-function updateSimilarityStatusClass(
-  element,
-  similarity
-) {
-
-  element.style.background = "";
-  element.style.color = "";
-
-  if (similarity <= 10) {
-
-    element.style.background =
-      "var(--good-soft)";
-
-    element.style.color =
-      "#047857";
-
-  } else if (similarity <= 25) {
-
-    element.style.background =
-      "var(--warn-soft)";
-
-    element.style.color =
-      "#92400e";
-
-  } else {
-
-    element.style.background =
-      "var(--danger-soft)";
-
-    element.style.color =
-      "#b91c1c";
-
-  }
-
-}
-
-
-/* ============================================================
-   SUMMARY
-============================================================ */
-
-function renderSummary(report) {
-
-  const summary =
-    document.querySelector(".summary-text");
-
-  if (!summary) return;
-
-
-  const similarityText =
-    `${report.similarity}% similarity`;
-
-  const aiText =
-    `${report.aiContent}% AI-content probability`;
-
-  let sourceDescription = "";
-
-  if (report.sources.length > 0) {
-
-    sourceDescription =
-      `Detected overlap includes ${report.sources.length} source${report.sources.length === 1 ? "" : "s"}.`;
-
-  } else {
-
-    sourceDescription =
-      "No external sources were identified.";
-
-  }
-
-
-  summary.innerHTML = `
-    This assignment contains
-    <strong>${escapeHTML(similarityText)}</strong>
-    based on the available similarity analysis.
-
-    ${sourceDescription}
-
-    <br><br>
-
-    The AI detection system estimates
-    <strong>${escapeHTML(aiText)}</strong>.
-  `;
-
-}
-
-
-/* ============================================================
-   METRICS
-============================================================ */
-
-function renderMetrics(report) {
-
-  const cards =
-    document.querySelectorAll(".metric-card");
-
-  if (!cards.length) return;
-
-
-  /* Similarity */
-
-  const similarityCard =
-    document.querySelector(".metric-card.similarity");
-
-  if (similarityCard) {
-
-    setMetricValue(
-      similarityCard,
-      `${report.similarity}%`
-    );
-
-    setMetricChange(
-      similarityCard,
-      `${report.matchingSections} matching sections`
-    );
-
-  }
-
-
-  /* AI */
-
-  const aiCard =
-    document.querySelector(".metric-card.ai");
-
-  if (aiCard) {
-
-    setMetricValue(
-      aiCard,
-      `${report.aiContent}%`
-    );
-
-    setMetricChange(
-      aiCard,
-      getAIConfidenceText(report.aiConfidence)
-    );
-
-  }
-
-
-  /* Spelling */
-
-  const spellingCard =
-    document.querySelector(".metric-card.spelling");
-
-  if (spellingCard) {
-
-    setMetricValue(
-      spellingCard,
-      report.spellingMistakes
-    );
-
-    setMetricChange(
-      spellingCard,
-      report.spellingMistakes > 0
-        ? "Needs attention"
-        : "No spelling issues"
-    );
-
-  }
-
-
-  /* Sources */
-
-  const sourceCard =
-    document.querySelector(".metric-card.sources");
-
-  if (sourceCard) {
-
-    setMetricValue(
-      sourceCard,
-      report.sources.length
-    );
-
-    setMetricChange(
-      sourceCard,
-      `${getMajorSources(report.sources)} major sources`
-    );
-
-  }
-
-}
-
-
-/* ============================================================
-   METRIC HELPERS
-============================================================ */
-
-function setMetricValue(
-  card,
-  value
-) {
-
-  const element =
-    card.querySelector(".metric-value");
-
-  if (element) {
-    element.textContent = value;
-  }
-
-}
-
-
-function setMetricChange(
-  card,
-  value
-) {
-
-  const element =
-    card.querySelector(".metric-change");
-
-  if (element) {
-    element.textContent = value;
-  }
-
-}
-
-
-/* ============================================================
-   PLAGIARISM FILTERS
-============================================================ */
-
-function renderFilters(report) {
-
-  const filterList =
-    document.querySelector(".filter-list");
-
-  if (!filterList) return;
-
-
-  const filters = [
-
-    {
-      name: "Copied Content",
-      count: report.filters.copiedContent,
-      type:
-        report.filters.copiedContent > 0
-          ? "danger"
-          : "good",
-      badge:
-        report.filters.copiedContent > 0
-          ? "Found"
-          : "Clear"
-    },
-
-    {
-      name: "Quotation",
-      count: report.filters.quotation,
-      type: "good",
-      badge: "Valid"
-    },
-
-    {
-      name: "Correct Citation",
-      count: report.filters.correctCitation,
-      type: "good",
-      badge: "Valid"
-    },
-
-    {
-      name: "Bibliography",
-      count: report.filters.bibliography,
-      type: "good",
-      badge: "Valid"
-    },
-
-    {
-      name: "Common Terminology",
-      count: report.filters.commonTerminology,
-      type:
-        report.filters.commonTerminology > 0
-          ? "warning"
-          : "good",
-      badge:
-        report.filters.commonTerminology > 0
-          ? "Review"
-          : "Clear"
-    },
-
-    {
-      name: "Assignment Template",
-      count: report.filters.assignmentTemplate,
-      type: "good",
-      badge: "Valid"
-    }
-
-  ];
-
-
-  filterList.innerHTML =
-    filters
-      .map(createFilterHTML)
-      .join("");
-
-}
-
-
-/* ============================================================
-   FILTER HTML
-============================================================ */
-
-function createFilterHTML(filter) {
-
-  return `
-    <div class="filter-item">
-
-      <span
-        class="filter-status ${filter.type}">
-      </span>
-
-      <span class="filter-name">
-        ${escapeHTML(filter.name)}
-      </span>
-
-      <span class="filter-count">
-        ${escapeHTML(filter.count)}
-      </span>
-
-      <span
-        class="filter-badge badge-${filter.type}">
-        ${escapeHTML(filter.badge)}
-      </span>
-
-    </div>
-  `;
-
-}
-
-
-/* ============================================================
-   AI DETECTION
-============================================================ */
-
-function renderAI(report) {
-
-  const aiScore =
-    document.querySelector(".ai-score");
-
-  if (aiScore) {
-
-    aiScore.textContent =
-      `${report.aiContent}%`;
-
-  }
-
-
-  const aiDescription =
-    document.querySelector(".ai-description");
-
-  if (aiDescription) {
-
-    aiDescription.innerHTML = `
-      Estimated AI-generated content
-      <br>
-      <strong>
-        ${escapeHTML(
-          getAIConfidenceText(
-            report.aiConfidence
-          )
-        )}
-      </strong>
-    `;
-
-  }
-
-
-  const confidenceFill =
-    document.querySelector(".confidence-fill");
-
-  if (confidenceFill) {
-
-    confidenceFill.style.width =
-      `${report.aiConfidence}%`;
-
-  }
-
-
-  const confidenceHead =
-    document.querySelector(".confidence-head");
-
-  if (confidenceHead) {
-
-    const spans =
-      confidenceHead.querySelectorAll("span");
-
-    if (spans.length >= 2) {
-
-      spans[1].textContent =
-        `${report.aiConfidence}%`;
-
-    }
-
-  }
-
-}
-
-
-/* ============================================================
-   AI CONFIDENCE
-============================================================ */
-
-function getAIConfidenceText(confidence) {
-
-  if (confidence >= 75) {
-    return "High confidence";
-  }
-
-  if (confidence >= 50) {
-    return "Medium confidence";
-  }
-
-  if (confidence > 0) {
-    return "Low confidence";
-  }
-
-  return "Confidence unavailable";
-}
-
-
-/* ============================================================
-   SOURCES
-============================================================ */
-
-function renderSources(report) {
-
-  const sourceList =
-    document.querySelector(".source-list");
-
-  if (!sourceList) return;
-
-
-  if (!report.sources.length) {
-
-    sourceList.innerHTML = `
-      <div class="source-item">
-        <div class="source-info">
-          <div class="source-name">
-            No sources detected
-          </div>
-          <div class="source-url">
-            No external source matches are available.
-          </div>
-        </div>
-      </div>
-    `;
-
-    return;
-  }
-
-
-  sourceList.innerHTML =
-    report.sources
-      .map((source, index) =>
-        createSourceHTML(
-          source,
-          index
-        )
-      )
-      .join("");
-
-}
-
-
-/* ============================================================
-   SOURCE HTML
-============================================================ */
-
-function createSourceHTML(
-  source,
-  index
-) {
-
-  const name =
-    source.name ||
-    source.title ||
-    source.source ||
-    "Unknown Source";
-
-
-  const url =
-    source.url ||
-    source.link ||
-    source.website ||
-    "Source URL unavailable";
-
-
-  const percentage =
-    normalizePercentage(
-      source.percentage ??
-      source.percent ??
-      source.similarity ??
-      0
-    );
-
-
-  return `
-    <div class="source-item">
-
-      <div class="source-number">
-        ${String(index + 1).padStart(2, "0")}
-      </div>
-
-      <div class="source-info">
-
-        <div class="source-name">
-          ${escapeHTML(name)}
-        </div>
-
-        <div class="source-url">
-          ${escapeHTML(url)}
-        </div>
-
-      </div>
-
-      <div class="source-percent">
-        ${percentage}%
-      </div>
-
-    </div>
-  `;
-
-}
-
-
-/* ============================================================
-   DETAILED FINDINGS
-============================================================ */
-
-function renderFindings(report) {
-
-  const findingsCard =
-    document.querySelector(".findings-card");
-
-  if (!findingsCard) return;
-
-
-  const existingFindings =
-    findingsCard.querySelectorAll(".finding");
-
-
-  existingFindings.forEach(
-    finding => finding.remove()
-  );
-
-
-  const title =
-    findingsCard.querySelector(".section-title");
-
-
-  const findings =
-    report.findings.length
-      ? report.findings
-      : generateFindings(report);
-
-
-  findings.forEach(finding => {
-
-    const element =
-      document.createElement("div");
-
-    element.className =
-      `finding ${getFindingType(finding.type)}`;
-
-
-    element.innerHTML = `
-
-      <div class="finding-icon">
-        ${getFindingIcon(finding.type)}
-      </div>
-
-      <div class="finding-content">
-
-        <div class="finding-title">
-          ${escapeHTML(
-            finding.title || "Finding"
-          )}
-        </div>
-
-        <div class="finding-description">
-          ${escapeHTML(
-            finding.description || ""
-          )}
-        </div>
-
-      </div>
-
-    `;
-
-
-    if (title) {
-
-      title.insertAdjacentElement(
-        "afterend",
-        element
-      );
-
-    } else {
-
-      findingsCard.appendChild(element);
-
-    }
-
-  });
-
-}
-
-
-/* ============================================================
-   AUTO FINDINGS
-============================================================ */
-
-function generateFindings(report) {
-
-  const findings = [];
-
-
-  if (report.filters.copiedContent > 0) {
-
-    findings.push({
-
-      type: "copy",
-
-      title:
-        "Copied content detected",
-
-      description:
-        `${report.filters.copiedContent} sections contain strong textual similarity with external or reference content.`
-
-    });
-
-  }
-
-
-  if (report.aiContent > 0) {
-
-    findings.push({
-
-      type: "ai",
-
-      title:
-        "AI-like writing patterns detected",
-
-      description:
-        `The analysis estimates ${report.aiContent}% AI-content probability with ${getAIConfidenceText(report.aiConfidence).toLowerCase()}.`
-
-    });
-
-  }
-
-
-  if (report.spellingMistakes > 0) {
-
-    findings.push({
-
-      type: "spelling",
-
-      title:
-        "Spelling mistakes found",
-
-      description:
-        `${report.spellingMistakes} spelling issue${report.spellingMistakes === 1 ? "" : "s"} were detected across the submitted assignment.`
-
-    });
-
-  }
-
-
-  if (!findings.length) {
-
-    findings.push({
-
-      type: "copy",
-
-      title:
-        "No major findings",
-
-      description:
-        "No significant issues were reported by the available analysis data."
-
-    });
-
-  }
-
-
-  return findings;
-
-}
-
-
-/* ============================================================
-   FINDING HELPERS
-============================================================ */
-
-function getFindingType(type) {
-
-  if (
-    type === "copy" ||
-    type === "plagiarism" ||
-    type === "copied"
-  ) {
-    return "copy";
-  }
-
-  if (
-    type === "ai" ||
-    type === "ai-content"
-  ) {
-    return "ai";
-  }
-
-  if (
-    type === "spelling" ||
-    type === "grammar"
-  ) {
-    return "spelling";
-  }
-
-  return "copy";
-
-}
-
-
-function getFindingIcon(type) {
-
-  const normalized =
-    getFindingType(type);
-
-  if (normalized === "copy") {
-    return "C";
-  }
-
-  if (normalized === "ai") {
-    return "AI";
-  }
-
-  if (normalized === "spelling") {
-    return "A";
-  }
-
-  return "!";
-
-}
-
-
-/* ============================================================
-   TEXT ANALYSIS
-============================================================ */
-
-function renderTextAnalysis(report) {
-
-  const preview =
-    document.querySelector(".document-preview");
-
-  if (!preview) return;
-
-
-  if (
-    !Array.isArray(report.textAnalysis) ||
-    !report.textAnalysis.length
-  ) {
-
-    preview.innerHTML = `
-      <div style="
-        color: var(--muted);
-        text-align: center;
-        padding: 20px;
-      ">
-        No text-level analysis is available.
-      </div>
-    `;
-
-    return;
-
-  }
-
-
-  preview.innerHTML =
-    report.textAnalysis
-      .map(renderTextSegment)
-      .join("");
-
-}
-
-
-/* ============================================================
-   TEXT SEGMENT
-============================================================ */
-
-function renderTextSegment(segment) {
-
-  if (typeof segment === "string") {
-
-    return escapeHTML(segment);
-
-  }
-
-
-  const text =
-    segment.text ||
-    segment.content ||
-    "";
-
-
-  const type =
-    segment.type ||
-    segment.category ||
-    "";
-
-
-  if (!type) {
-
-    return escapeHTML(text);
-
-  }
-
-
-  return `
-    <span class="highlight ${escapeHTML(type)}">
-      ${escapeHTML(text)}
-    </span>
-  `;
-
-}
-
-
-/* ============================================================
-   FOOTER
-============================================================ */
-
-function renderFooter(report) {
-
-  const footer =
-    document.querySelector(".report-footer");
-
-  if (!footer) return;
-
-
-  const spans =
-    footer.querySelectorAll("span");
-
-  if (spans.length >= 2) {
-
-    spans[0].textContent =
-      "AssignCheck · Detailed Analysis Report";
-
-
-    spans[1].textContent =
-      `Report ID: ${generateReportID(report)}`;
-
-  }
-
-}
-
-
-/* ============================================================
-   REPORT ID
-============================================================ */
-
-function generateReportID(report) {
-
-  if (report.reportId) {
-
-    return report.reportId;
-
-  }
-
-
-  const date =
-    new Date(
-      report.analyzedAt || Date.now()
-    );
-
-
-  const year =
-    date.getFullYear();
-
-
-  const month =
-    String(
-      date.getMonth() + 1
-    ).padStart(2, "0");
-
-
-  const day =
-    String(
-      date.getDate()
-    ).padStart(2, "0");
-
-
-  return `AC-${year}-${month}${day}`;
-
-}
-
-
-/* ============================================================
-   MAJOR SOURCES
-============================================================ */
-
-function getMajorSources(sources) {
-
-  return sources.filter(source => {
-
-    const percentage =
-      Number(
-        source.percentage ??
-        source.percent ??
-        source.similarity ??
-        0
-      );
-
-    return percentage >= 5;
-
-  }).length;
-
-}
-
-
-/* ============================================================
-   FILE EXTENSION
-============================================================ */
-
-function getFileExtension(fileName) {
-
-  if (!fileName) {
-    return "";
-  }
-
-  const parts =
-    fileName.split(".");
-
-  if (parts.length < 2) {
-    return "";
-  }
-
-  return parts
-    .pop()
-    .toUpperCase();
-
-}
-
-
-/* ============================================================
-   PERCENTAGE NORMALIZER
-============================================================ */
-
-function normalizePercentage(value) {
-
-  const number =
-    Number(value);
-
-  if (
-    Number.isNaN(number) ||
-    !Number.isFinite(number)
-  ) {
-
-    return 0;
-
-  }
-
-  return Math.min(
-    100,
-    Math.max(
-      0,
-      Number(number.toFixed(1))
-    )
-  );
-
-}
-
-
-/* ============================================================
-   NUMBER FORMAT
-============================================================ */
-
-function formatNumber(value) {
-
-  const number =
-    Number(value);
-
-  if (Number.isNaN(number)) {
-    return "0";
-  }
-
-  return number.toLocaleString();
-
-}
-
-
-/* ============================================================
-   FILE SIZE
-============================================================ */
-
-function formatFileSize(bytes) {
-
-  const size =
-    Number(bytes);
-
-  if (!size || size <= 0) {
-    return "";
-  }
-
-
-  const units =
-    ["B", "KB", "MB", "GB"];
-
-
-  const index =
-    Math.floor(
-      Math.log(size) /
-      Math.log(1024)
-    );
-
-
-  const safeIndex =
-    Math.min(
-      index,
-      units.length - 1
-    );
-
-
-  const converted =
-    size /
-    Math.pow(
-      1024,
-      safeIndex
-    );
-
-
-  return `${converted.toFixed(1)} ${units[safeIndex]}`;
-
-}
-
-
-/* ============================================================
-   DATE FORMAT
-============================================================ */
-
-function formatDate(dateValue) {
-
-  const date =
-    new Date(dateValue);
-
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
-
-    return "";
-
-  }
-
-
-  return date.toLocaleDateString(
-    "en-US",
-    {
+    const d = report.date ? new Date(report.date) : new Date();
+    reportDate.textContent = d.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric"
-    }
-  );
-
-}
-
-
-/* ============================================================
-   ESCAPE HTML
-   Prevents backend/user text from injecting HTML.
-============================================================ */
-
-function escapeHTML(value) {
-
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-
-}
-
-
-/* ============================================================
-   NO REPORT DATA
-============================================================ */
-
-function showNoReportMessage() {
-
-  const page =
-    document.querySelector(".page");
-
-  if (!page) return;
-
-
-  const message =
-    document.createElement("div");
-
-  message.style.cssText = `
-    background: white;
-    border: 1px solid var(--line);
-    border-radius: 18px;
-    padding: 40px;
-    text-align: center;
-    box-shadow: var(--shadow-sm);
-    margin-top: 30px;
-  `;
-
-
-  message.innerHTML = `
-
-    <div style="
-      font-size: 32px;
-      margin-bottom: 12px;
-    ">
-      📄
-    </div>
-
-    <h2 style="
-      margin-bottom: 8px;
-    ">
-      No Report Data Found
-    </h2>
-
-    <p style="
-      color: var(--muted);
-      margin-bottom: 20px;
-    ">
-      Please run an assignment analysis first.
-      The detailed report will be generated from
-      the analysis results.
-    </p>
-
-    <button
-      class="btn btn-primary"
-      onclick="history.back()"
-    >
-      ← Back to Analysis
-    </button>
-
-  `;
-
-
-  page.innerHTML = "";
-
-  page.appendChild(message);
-
-}
-
-
-/* ============================================================
-   OPTIONAL DEBUG HELPERS
-============================================================ */
-
-window.AssignCheckReport = {
-
-  getData() {
-
-    return loadReportData();
-
-  },
-
-
-  clear() {
-
-    sessionStorage.removeItem(
-      REPORT_STORAGE_KEY
-    );
-
-    location.reload();
-
-  },
-
-
-  reload() {
-
-    location.reload();
-
+    });
   }
 
+  const reportIdSpan = document.getElementById("reportIdSpan");
+  if (reportIdSpan) {
+    reportIdSpan.textContent = "ID: #" + (report.id || "REP-" + Math.floor(1000 + Math.random() * 9000));
+  }
+
+  // 2. Update Score Circle & Risk Badge
+  const overallSimilarity = document.getElementById("overallSimilarity");
+  if (overallSimilarity) {
+    overallSimilarity.textContent = similarity + "%";
+  }
+
+  const scoreCircle = document.getElementById("scoreCircle");
+  if (scoreCircle) {
+    let color = "#10b981"; // good
+    if (similarity >= 50) {
+      color = "#ef4444"; // danger
+    } else if (similarity >= 20) {
+      color = "#f59e0b"; // warn
+    }
+    scoreCircle.style.background = `conic-gradient(${color} ${similarity}%, #e2e8f0 ${similarity}%)`;
+  }
+
+  const scoreRiskBadge = document.getElementById("scoreRiskBadge");
+  if (scoreRiskBadge) {
+    if (similarity >= 50) {
+      scoreRiskBadge.className = "score-badge high";
+      scoreRiskBadge.textContent = "High Similarity";
+    } else if (similarity >= 20) {
+      scoreRiskBadge.className = "score-badge medium";
+      scoreRiskBadge.textContent = "Medium Similarity";
+    } else {
+      scoreRiskBadge.className = "score-badge low";
+      scoreRiskBadge.textContent = "Low Similarity";
+    }
+  }
+
+  // 3. Update Stat Cards
+  const cardSimVal = document.getElementById("cardSimVal");
+  if (cardSimVal) cardSimVal.textContent = similarity + "%";
+
+  const cardPhrasesVal = document.getElementById("cardPhrasesVal");
+  if (cardPhrasesVal) cardPhrasesVal.textContent = currentPhrases.length;
+
+  const cardTyposVal = document.getElementById("cardTyposVal");
+  if (cardTyposVal) cardTyposVal.textContent = allTypos.length;
+
+  const cardWordsVal = document.getElementById("cardWordsVal");
+  if (cardWordsVal) cardWordsVal.textContent = totalWords.toLocaleString();
+
+  // 4. Update Tab Badges
+  const tabPhrasesCount = document.getElementById("tabPhrasesCount");
+  if (tabPhrasesCount) tabPhrasesCount.textContent = currentPhrases.length;
+
+  const tabTyposCount = document.getElementById("tabTyposCount");
+  if (tabTyposCount) tabTyposCount.textContent = allTypos.length;
+
+  // 5. Render Documents with Highlights
+  renderDocumentTexts(true, true);
+
+  // 6. Render Common Phrases List
+  renderPhrasesList(currentPhrases);
+
+  // 7. Render Spelling Mistakes
+  renderTyposList(allTypos);
+
+  // 8. Render Summary Details
+  renderSummaryDetails(similarity, currentPhrases.length, allTypos.length);
+}
+
+// =========================================
+// RENDER DOCUMENT TEXT WITH HIGHLIGHTS
+// =========================================
+function renderDocumentTexts(showMatches, showTypos) {
+  if (!currentReport) return;
+
+  const textA = currentReport.textA || "";
+  const textB = currentReport.textB || "";
+
+  const matchesA = Array.isArray(currentReport.filefirstmatches)
+    ? currentReport.filefirstmatches
+    : Array.isArray(currentReport.matchesA)
+      ? currentReport.matchesA
+      : [];
+
+  const matchesB = Array.isArray(currentReport.filesecondmatches)
+    ? currentReport.filesecondmatches
+    : Array.isArray(currentReport.matchesB)
+      ? currentReport.matchesB
+      : [];
+
+  const docABody = document.getElementById("docABody");
+  const docBBody = document.getElementById("docBBody");
+
+  if (docABody) {
+    docABody.innerHTML = highlightTextWithMatchesAndTypos(textA, matchesA, currentTyposA, {
+      showMatches: showMatches,
+      showTypos: showTypos
+    });
+  }
+
+  if (docBBody) {
+    docBBody.innerHTML = highlightTextWithMatchesAndTypos(textB, matchesB, currentTyposB, {
+      showMatches: showMatches,
+      showTypos: showTypos
+    });
+  }
+}
+
+// =========================================
+// RENDER COMMON PHRASES LIST
+// =========================================
+function renderPhrasesList(phrases) {
+  const phrasesGrid = document.getElementById("phrasesGrid");
+  if (!phrasesGrid) return;
+
+  if (!phrases || phrases.length === 0) {
+    phrasesGrid.innerHTML = `
+      <div class="empty-state">
+        <h3>No common phrases detected</h3>
+        <p>No multi-word duplicate phrases found between these documents.</p>
+      </div>
+    `;
+    return;
+  }
+
+  let html = "";
+  for (let i = 0; i < phrases.length; i++) {
+    const item = phrases[i];
+    html += `
+      <div class="phrase-item">
+        <div class="phrase-content">
+          <div class="phrase-text">"${escapeHtml(item.phrase)}"</div>
+          <div class="phrase-meta">
+            <span>📏 ${item.wordCount} words</span>
+            <span>•</span>
+            <span>🔁 Found ${item.count} time${item.count > 1 ? "s" : ""}</span>
+          </div>
+        </div>
+        <button class="btn btn-outline" style="padding:6px 12px;font-size:12px;" onclick="locatePhrase('${escapeHtml(item.phrase)}')">
+          Find in Text →
+        </button>
+      </div>
+    `;
+  }
+
+  phrasesGrid.innerHTML = html;
+}
+
+// Make locatePhrase globally available
+window.locatePhrase = function (phraseText) {
+  // Switch to Highlight tab
+  const tabBtn = document.querySelector(".tab-btn[data-tab='tab-highlight']");
+  if (tabBtn) tabBtn.click();
+
+  // Scroll to first mark or occurrence
+  setTimeout(function () {
+    const marks = document.querySelectorAll("mark.highlight-match");
+    for (let i = 0; i < marks.length; i++) {
+      if (marks[i].textContent.toLowerCase().includes(phraseText.toLowerCase())) {
+        marks[i].scrollIntoView({ behavior: "smooth", block: "center" });
+        marks[i].style.outline = "3px solid #f59e0b";
+        setTimeout(() => { marks[i].style.outline = ""; }, 2000);
+        break;
+      }
+    }
+  }, 100);
 };
+
+// =========================================
+// RENDER SPELLING MISTAKES LIST
+// =========================================
+function renderTyposList(typos) {
+  const tbody = document.getElementById("typosTableBody");
+  const bannerDesc = document.getElementById("typosBannerDesc");
+
+  if (bannerDesc) {
+    bannerDesc.textContent = typos.length === 0
+      ? "Great news! No common academic or English spelling mistakes detected."
+      : `Found ${typos.length} common spelling mistake${typos.length > 1 ? "s" : ""} across the analyzed documents.`;
+  }
+
+  if (!tbody) return;
+
+  if (!typos || typos.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="4" style="text-align:center;padding:40px;color:#10b981;font-weight:700;">
+          ✓ No spelling mistakes or common typos found in either document!
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  let html = "";
+  for (let i = 0; i < typos.length; i++) {
+    const t = typos[i];
+    html += `
+      <tr>
+        <td>
+          <span class="typo-tag-wrong">${escapeHtml(t.word)}</span>
+        </td>
+        <td>
+          <span class="typo-tag-right">✓ ${escapeHtml(t.suggestion)}</span>
+        </td>
+        <td>
+          <span class="typo-doc-badge">${escapeHtml(t.docLabel || "Document")}</span>
+        </td>
+        <td>
+          <div class="typo-context">${escapeHtml(t.context || "—")}</div>
+        </td>
+      </tr>
+    `;
+  }
+
+  tbody.innerHTML = html;
+}
+
+// =========================================
+// RENDER SUMMARY DETAILS
+// =========================================
+function renderSummaryDetails(similarity, phraseCount, typoCount) {
+  const summaryRiskDetail = document.getElementById("summaryRiskDetail");
+  if (summaryRiskDetail) {
+    if (similarity >= 50) {
+      summaryRiskDetail.textContent = `High similarity score (${similarity}%). Substantial duplicate content detected across sections.`;
+    } else if (similarity >= 20) {
+      summaryRiskDetail.textContent = `Moderate similarity score (${similarity}%). Noticeable shared terminology and phrasing present.`;
+    } else {
+      summaryRiskDetail.textContent = `Low similarity score (${similarity}%). Content appears largely original with typical reference matches.`;
+    }
+  }
+
+  const summaryTypoDetail = document.getElementById("summaryTypoDetail");
+  if (summaryTypoDetail) {
+    summaryTypoDetail.textContent = typoCount === 0
+      ? "Writing mechanics are clean with 0 identified spelling errors."
+      : `${typoCount} spelling mistakes detected. We recommend correcting these typos before final submission.`;
+  }
+}
+
+// =========================================
+// HTML ESCAPE
+// =========================================
+function escapeHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// =========================================
+// SAMPLE DEMO DATA (IF NO SESSION SAVED)
+// =========================================
+function getDemoReport() {
+  return {
+    id: "REP-DEMO",
+    date: new Date().toISOString(),
+    filenames: ["CS-309_Unit_Test.txt", "CS-301_Mid_Semester.txt"],
+    similarity: 18.5,
+    roundedscore: 18.5,
+    textA: `CS-309 — AI & Neural Networks Unit Test
+Department of Computer Science
+
+Instructions:
+- Write your answers clearly and avoid plagarism in any assigment.
+- An enviroment with proper testing was created.
+- The algorithm has the best average-case time complexity.
+- What is the worst-case time complexity of Merge Sort?
+- Which sorting algorithm is stable?
+- The space complexity of Heap Sort is O(1).
+- An unexpected error occured during algorithm execution.
+- Be careful not to recieve unverified code from unapproved sources.`,
+    textB: `CS-301 — Algorithms & Complexity Mid Semester
+Department of Computer Science
+
+Instructions:
+- Write your answers clearly and avoid plagarism in any assigment.
+- Ensure the proper development enviroment is set up.
+- The algorithm has the best average-case time complexity.
+- What is the worst-case time complexity of Merge Sort?
+- Which sorting algorithm is stable?
+- The space complexity of Heap Sort is O(1).
+- Verify all algorithms before final submission.`,
+    filefirstmatches: [
+      { phrase: "Department of Computer Science", startIndex: 6, endIndex: 10, length: 4 },
+      { phrase: "Write your answers clearly and avoid", startIndex: 12, endIndex: 18, length: 6 },
+      { phrase: "The algorithm has the best average-case time complexity.", startIndex: 28, endIndex: 36, length: 8 },
+      { phrase: "What is the worst-case time complexity of Merge Sort?", startIndex: 37, endIndex: 47, length: 9 },
+      { phrase: "Which sorting algorithm is stable?", startIndex: 48, endIndex: 53, length: 5 },
+      { phrase: "The space complexity of Heap Sort is O(1).", startIndex: 54, endIndex: 63, length: 9 }
+    ],
+    filesecondmatches: [
+      { phrase: "Department of Computer Science", startIndex: 6, endIndex: 10, length: 4 },
+      { phrase: "Write your answers clearly and avoid", startIndex: 12, endIndex: 18, length: 6 },
+      { phrase: "The algorithm has the best average-case time complexity.", startIndex: 24, endIndex: 32, length: 8 },
+      { phrase: "What is the worst-case time complexity of Merge Sort?", startIndex: 33, endIndex: 43, length: 9 },
+      { phrase: "Which sorting algorithm is stable?", startIndex: 44, endIndex: 49, length: 5 },
+      { phrase: "The space complexity of Heap Sort is O(1).", startIndex: 50, endIndex: 59, length: 9 }
+    ]
+  };
+}

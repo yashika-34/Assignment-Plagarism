@@ -1,46 +1,131 @@
+"use strict";
+
+/* =========================================================
+   ASSIGNCHECK — CHECKASSIGN.JS
+   UPDATED RESULT FLOW
+========================================================= */
+
+
+/* =========================================================
+   LOGIN CHECK
+========================================================= */
+
+let currentuser = localStorage.getItem("loggedIn");
+
+if (currentuser == null) {
+  alert("Login first");
+  window.location.href = "../Templates/index.html";
+}
+
+
+/* =========================================================
+   BACKEND IMPORTS
+========================================================= */
+
 import {
   addfiles,
   processEntry,
   createChunksLinear,
   buildthegrams,
   applyalgo,
+  getthecommongrams,
+  detectSpellingMistakes,
+  extractCommonPhrases,
+  highlightTextWithMatchesAndTypos,
 } from "../../Backend/CheckBackend.js";
 
+
+/* =========================================================
+   GLOBAL STATE
+========================================================= */
+
 let currentMode = "student";
+
 let fileList = [];
+
 let rawTextMap = {};
+
 let localChunks = [];
+
 let isRunning = false;
 
-// Main elements
-const dropZoneLeft = document.getElementById("dropLeft");
 
-const fileInputLeft = document.getElementById("fileInputLeft");
+/* =========================================================
+   MAIN ELEMENTS
+========================================================= */
 
-const analyzeBtn = document.getElementById("analyzeBtn");
+const dropZoneLeft =
+  document.getElementById("dropLeft");
 
-const viewUpload = document.getElementById("viewUpload");
+const fileInputLeft =
+  document.getElementById("fileInputLeft");
 
-const viewAnimation = document.getElementById("viewAnimation");
+const analyzeBtn =
+  document.getElementById("analyzeBtn");
 
-const viewResults = document.getElementById("viewResults");
+const viewUpload =
+  document.getElementById("viewUpload");
 
-// Animation elements
-const aEngine = document.getElementById("aEngine");
+const viewAnimation =
+  document.getElementById("viewAnimation");
 
-const aStage = document.getElementById("aStage");
+const viewResults =
+  document.getElementById("viewResults");
 
-const progFill = document.getElementById("progFill");
 
-const progPct = document.getElementById("progPct");
+/* =========================================================
+   ANIMATION ELEMENTS
+========================================================= */
 
-const progMsg = document.getElementById("progMsg");
+const aEngine =
+  document.getElementById("aEngine");
 
-const aeStatus = document.getElementById("aeStatus");
+const aStage =
+  document.getElementById("aStage");
 
-const animStatusText = document.getElementById("animStatusText");
+const progFill =
+  document.getElementById("progFill");
 
-const animStatus = document.getElementById("animStatus");
+const progPct =
+  document.getElementById("progPct");
+
+const progMsg =
+  document.getElementById("progMsg");
+
+const aeStatus =
+  document.getElementById("aeStatus");
+
+const animStatusText =
+  document.getElementById("animStatusText");
+
+const animStatus =
+  document.getElementById("animStatus");
+
+
+/* =========================================================
+   SAFETY CHECK
+========================================================= */
+
+if (!analyzeBtn) {
+  console.error("Analyze button #analyzeBtn not found.");
+}
+
+if (!viewUpload) {
+  console.error("Upload view #viewUpload not found.");
+}
+
+if (!viewAnimation) {
+  console.error("Animation view #viewAnimation not found.");
+}
+
+if (!viewResults) {
+  console.error("Result view #viewResults not found.");
+}
+
+
+/* =========================================================
+   WAIT
+========================================================= */
 
 function wait(ms) {
   return new Promise(function (resolve) {
@@ -48,222 +133,981 @@ function wait(ms) {
   });
 }
 
-// Change progress bar
-function setProgressStep(stepNumber) {
-  const steps = document.querySelectorAll(".p-step");
 
-  const connectors = document.querySelectorAll(".p-connector");
+/* =========================================================
+   PROGRESS STEPS
+========================================================= */
+
+function setProgressStep(stepNumber) {
+
+  const steps =
+    document.querySelectorAll(".p-step");
+
+  const connectors =
+    document.querySelectorAll(".p-connector");
+
 
   for (let i = 0; i < steps.length; i++) {
-    const step = Number(steps[i].dataset.step);
+
+    const step =
+      Number(steps[i].dataset.step);
 
     if (step < stepNumber) {
-      steps[i].className = "p-step done";
+
+      steps[i].className =
+        "p-step done";
+
     } else if (step === stepNumber) {
-      steps[i].className = "p-step active";
+
+      steps[i].className =
+        "p-step active";
+
     } else {
-      steps[i].className = "p-step";
+
+      steps[i].className =
+        "p-step";
+
     }
   }
 
+
   for (let i = 0; i < connectors.length; i++) {
+
     if (i + 1 < stepNumber) {
-      connectors[i].classList.add("filled");
+
+      connectors[i]
+        .classList
+        .add("filled");
+
     } else {
-      connectors[i].classList.remove("filled");
+
+      connectors[i]
+        .classList
+        .remove("filled");
+
     }
   }
 }
 
-// Show upload, animation or result
+
+/* =========================================================
+   SHOW VIEW
+========================================================= */
+
 function showView(view) {
+
+  if (!viewUpload ||
+      !viewAnimation ||
+      !viewResults ||
+      !view) {
+
+    return;
+  }
+
+
   viewUpload.classList.remove("active");
 
   viewAnimation.classList.remove("active");
 
   viewResults.classList.remove("active");
 
+
   view.classList.add("active");
 
-  window.scrollTo(0, 0);
-}
 
-// Analysis mode
-const modeCards = document.querySelectorAll(".mode-card");
-
-const uploadLayout = document.getElementById("uploadLayout");
-
-const filePanelSingle = document.getElementById("filePanelSingle");
-
-const zoneRight = document.getElementById("zoneRight");
-
-for (let i = 0; i < modeCards.length; i++) {
-  modeCards[i].addEventListener("click", function () {
-    currentMode = this.dataset.mode;
-
-    for (let j = 0; j < modeCards.length; j++) {
-      modeCards[j].classList.remove("selected");
-
-      modeCards[j].setAttribute("aria-checked", "false");
-    }
-
-    this.classList.add("selected");
-
-    this.setAttribute("aria-checked", "true");
-
-    if (currentMode === "reference") {
-      zoneRight.style.display = "flex";
-
-      filePanelSingle.style.display = "none";
-
-      uploadLayout.className = "upload-layout dual";
-
-      document.getElementById("labelLeft").textContent = "Student Assignment";
-
-      document.getElementById("chipLeft").textContent = "S";
-
-      document.getElementById("summaryText").innerHTML =
-        "Upload a <b>student file</b> and the <b>teacher reference</b> to compare.";
-    } else {
-      zoneRight.style.display = "none";
-
-      filePanelSingle.style.display = "flex";
-
-      uploadLayout.className = "upload-layout single";
-
-      document.getElementById("labelLeft").textContent = "Student Assignments";
-
-      document.getElementById("chipLeft").textContent = "S1";
-
-      document.getElementById("summaryText").innerHTML =
-        "Upload <b>two student files</b> to compare them.";
-    }
-
-    renderFileList();
-
-    checkButtonState();
+  window.scrollTo({
+    top: 0,
+    behavior: "auto"
   });
 }
 
-// Show selected files
-function renderFileList() {
-  const container = document.getElementById("fileListSingle");
 
-  const badge = document.getElementById("fileCountBadgeSingle");
+/* =========================================================
+   MODE SWITCH
+========================================================= */
 
-  const countText = document.getElementById("fileCountSingle");
+const modeCards =
+  document.querySelectorAll(".mode-card");
 
-  addfiles(null, fileList, container);
+const uploadLayout =
+  document.getElementById("uploadLayout");
 
-  if (badge) {
-    badge.textContent = fileList.length;
-  }
+const filePanelSingle =
+  document.getElementById("filePanelSingle");
 
-  if (countText) {
-    countText.textContent = fileList.length + " files selected";
-  }
+const zoneRight =
+  document.getElementById("zoneRight");
 
-  const removeButtons = container.querySelectorAll(".f-remove");
 
-  for (let i = 0; i < removeButtons.length; i++) {
-    removeButtons[i].addEventListener("click", function (event) {
-      event.stopPropagation();
+for (let i = 0; i < modeCards.length; i++) {
 
-      const index = Number(this.dataset.idx);
+  modeCards[i].addEventListener(
+    "click",
+    function () {
 
-      fileList.splice(index, 1);
+      currentMode =
+        this.dataset.mode;
+
+
+      for (
+        let j = 0;
+        j < modeCards.length;
+        j++
+      ) {
+
+        modeCards[j]
+          .classList
+          .remove("selected");
+
+        modeCards[j]
+          .setAttribute(
+            "aria-checked",
+            "false"
+          );
+      }
+
+
+      this.classList.add("selected");
+
+      this.setAttribute(
+        "aria-checked",
+        "true"
+      );
+
+
+      if (currentMode === "reference") {
+
+        if (zoneRight) {
+          zoneRight.style.display = "flex";
+        }
+
+        if (filePanelSingle) {
+          filePanelSingle.style.display = "none";
+        }
+
+        if (uploadLayout) {
+          uploadLayout.className =
+            "upload-layout dual";
+        }
+
+
+        const labelLeft =
+          document.getElementById("labelLeft");
+
+        const chipLeft =
+          document.getElementById("chipLeft");
+
+        const summaryText =
+          document.getElementById("summaryText");
+
+
+        if (labelLeft) {
+          labelLeft.textContent =
+            "Student Assignment";
+        }
+
+        if (chipLeft) {
+          chipLeft.textContent = "S";
+        }
+
+        if (summaryText) {
+
+          summaryText.innerHTML =
+            "Upload a <b>student file</b> and the <b>teacher reference</b> to compare.";
+        }
+
+      } else {
+
+        if (zoneRight) {
+          zoneRight.style.display = "none";
+        }
+
+        if (filePanelSingle) {
+          filePanelSingle.style.display = "flex";
+        }
+
+        if (uploadLayout) {
+          uploadLayout.className =
+            "upload-layout single";
+        }
+
+
+        const labelLeft =
+          document.getElementById("labelLeft");
+
+        const chipLeft =
+          document.getElementById("chipLeft");
+
+        const summaryText =
+          document.getElementById("summaryText");
+
+
+        if (labelLeft) {
+          labelLeft.textContent =
+            "Student Assignments";
+        }
+
+        if (chipLeft) {
+          chipLeft.textContent = "S1";
+        }
+
+        if (summaryText) {
+
+          summaryText.innerHTML =
+            "Upload <b>two or more student files</b> to compare them against each other.";
+        }
+      }
+
 
       renderFileList();
 
       checkButtonState();
-    });
+    }
+  );
+}
+
+
+/* =========================================================
+   RENDER FILE LIST
+========================================================= */
+
+function renderFileList() {
+
+  const container =
+    document.getElementById(
+      "fileListSingle"
+    );
+
+  const badge =
+    document.getElementById(
+      "fileCountBadgeSingle"
+    );
+
+  const countText =
+    document.getElementById(
+      "fileCountSingle"
+    );
+
+
+  if (!container) {
+    return;
+  }
+
+
+  addfiles(
+    null,
+    fileList,
+    container
+  );
+
+
+  if (badge) {
+
+    badge.textContent =
+      fileList.length;
+  }
+
+
+  if (countText) {
+
+    countText.textContent =
+      fileList.length +
+      " files selected";
+  }
+
+
+  const removeButtons =
+    container.querySelectorAll(
+      ".f-remove"
+    );
+
+
+  for (
+    let i = 0;
+    i < removeButtons.length;
+    i++
+  ) {
+
+    removeButtons[i]
+      .addEventListener(
+        "click",
+        function (event) {
+
+          event.stopPropagation();
+
+
+          const index =
+            Number(
+              this.dataset.idx
+            );
+
+
+          if (
+            index >= 0 &&
+            index < fileList.length
+          ) {
+
+            fileList.splice(
+              index,
+              1
+            );
+          }
+
+
+          renderFileList();
+
+          checkButtonState();
+        }
+      );
   }
 }
 
-// Enable Analyze button
+
+/* =========================================================
+   ANALYZE BUTTON STATE
+========================================================= */
+
 function checkButtonState() {
+
+  if (!analyzeBtn) {
+    return;
+  }
+
+
   if (fileList.length >= 2) {
+
     analyzeBtn.disabled = false;
 
-    analyzeBtn.setAttribute("aria-disabled", "false");
+    analyzeBtn.setAttribute(
+      "aria-disabled",
+      "false"
+    );
+
   } else {
+
     analyzeBtn.disabled = true;
 
-    analyzeBtn.setAttribute("aria-disabled", "true");
+    analyzeBtn.setAttribute(
+      "aria-disabled",
+      "true"
+    );
   }
 }
 
-// Add files
+
+/* =========================================================
+   ADD FILES
+========================================================= */
+
 function handleIncomingFiles(files) {
-  for (let i = 0; i < files.length; i++) {
+
+  if (!files) {
+    return;
+  }
+
+
+  for (
+    let i = 0;
+    i < files.length;
+    i++
+  ) {
+
     fileList.push(files[i]);
   }
+
 
   renderFileList();
 
   checkButtonState();
 }
 
-// Open file picker
-dropZoneLeft.addEventListener("click", function () {
-  fileInputLeft.click();
-});
 
-fileInputLeft.addEventListener("change", function () {
-  if (fileInputLeft.files) {
-    handleIncomingFiles(fileInputLeft.files);
-  }
+/* =========================================================
+   FILE PICKER
+========================================================= */
 
-  fileInputLeft.value = "";
-});
+if (dropZoneLeft && fileInputLeft) {
 
-// Drag and drop
-const dragEvents = ["dragenter", "dragover", "dragleave", "drop"];
+  dropZoneLeft.addEventListener(
+    "click",
+    function () {
 
-for (let i = 0; i < dragEvents.length; i++) {
-  dropZoneLeft.addEventListener(dragEvents[i], function (event) {
-    event.preventDefault();
+      fileInputLeft.click();
+    }
+  );
 
-    event.stopPropagation();
-  });
+
+  fileInputLeft.addEventListener(
+    "change",
+    function () {
+
+      if (fileInputLeft.files) {
+
+        handleIncomingFiles(
+          fileInputLeft.files
+        );
+      }
+
+
+      fileInputLeft.value = "";
+    }
+  );
 }
 
-dropZoneLeft.addEventListener("drop", async function (event) {
-  event.preventDefault();
 
-  const items = event.dataTransfer.items;
+/* =========================================================
+   DRAG AND DROP
+========================================================= */
 
-  const files = [];
+if (dropZoneLeft) {
 
-  if (items && items.length > 0) {
-    for (let i = 0; i < items.length; i++) {
-      let entry = null;
+  const dragEvents = [
+    "dragenter",
+    "dragover",
+    "dragleave",
+    "drop"
+  ];
 
-      if (items[i].webkitGetAsEntry) {
-        entry = items[i].webkitGetAsEntry();
+
+  for (
+    let i = 0;
+    i < dragEvents.length;
+    i++
+  ) {
+
+    dropZoneLeft.addEventListener(
+      dragEvents[i],
+      function (event) {
+
+        event.preventDefault();
+
+        event.stopPropagation();
       }
-
-      if (entry) {
-        await processEntry(entry, files);
-      } else {
-        const file = items[i].getAsFile();
-
-        if (file) {
-          files.push(file);
-        }
-      }
-    }
-  } else if (event.dataTransfer.files) {
-    for (let i = 0; i < event.dataTransfer.files.length; i++) {
-      files.push(event.dataTransfer.files[i]);
-    }
+    );
   }
 
-  handleIncomingFiles(files);
-});
 
-// Animation stages
+  dropZoneLeft.addEventListener(
+    "drop",
+    async function (event) {
+
+      event.preventDefault();
+
+      event.stopPropagation();
+
+
+      const items =
+        event.dataTransfer.items;
+
+      const files = [];
+
+
+      if (
+        items &&
+        items.length > 0
+      ) {
+
+        for (
+          let i = 0;
+          i < items.length;
+          i++
+        ) {
+
+          const entry =
+            items[i].webkitGetAsEntry
+              ? items[i].webkitGetAsEntry()
+              : null;
+
+
+          if (entry) {
+
+            await processEntry(
+              entry,
+              files
+            );
+
+          } else {
+
+            const file =
+              items[i].getAsFile();
+
+            if (file) {
+
+              files.push(file);
+            }
+          }
+        }
+
+      } else if (
+        event.dataTransfer.files
+      ) {
+
+        for (
+          let i = 0;
+          i <
+          event.dataTransfer.files.length;
+          i++
+        ) {
+
+          files.push(
+            event.dataTransfer.files[i]
+          );
+        }
+      }
+
+
+      handleIncomingFiles(files);
+    }
+  );
+}
+
+
+/* =========================================================
+   FILE TYPE
+========================================================= */
+
+function getFileType(filename) {
+
+  const ext =
+    filename
+      .split(".")
+      .pop()
+      .toLowerCase();
+
+
+  const types = {
+
+    pdf: {
+      label: "PDF",
+      color: "--danger",
+      icon: "pdf"
+    },
+
+    docx: {
+      label: "DOCX",
+      color: "--s1",
+      icon: "docx"
+    },
+
+    doc: {
+      label: "DOC",
+      color: "--s1",
+      icon: "docx"
+    },
+
+    pptx: {
+      label: "PPTX",
+      color: "--warn",
+      icon: "pptx"
+    },
+
+    ppt: {
+      label: "PPT",
+      color: "--warn",
+      icon: "pptx"
+    },
+
+    txt: {
+      label: "TXT",
+      color: "--good",
+      icon: "txt"
+    }
+  };
+
+
+  return (
+    types[ext] ||
+    {
+      label: "FILE",
+      color: "--muted",
+      icon: "txt"
+    }
+  );
+}
+
+
+/* =========================================================
+   ANIMATION DOCUMENTS
+========================================================= */
+
+function createAnimationDocs(files) {
+
+  if (!aStage) {
+    return;
+  }
+
+
+  const existingDocs =
+    aStage.querySelectorAll(
+      ".a-doc"
+    );
+
+
+  existingDocs.forEach(
+    function (doc) {
+      doc.remove();
+    }
+  );
+
+
+  const connectionsSvg =
+    aStage.querySelector(
+      ".a-connections"
+    );
+
+
+  if (connectionsSvg) {
+    connectionsSvg.innerHTML = "";
+  }
+
+
+  const numFiles =
+    files.length;
+
+
+  let positions = [];
+
+
+  if (numFiles === 2) {
+
+    positions = [
+
+      {
+        top: "35%",
+        left: "10%"
+      },
+
+      {
+        top: "35%",
+        right: "10%"
+      }
+
+    ];
+
+  } else if (numFiles === 3) {
+
+    positions = [
+
+      {
+        top: "15%",
+        left: "10%"
+      },
+
+      {
+        top: "15%",
+        right: "10%"
+      },
+
+      {
+        top: "65%",
+        left: "35%"
+      }
+
+    ];
+
+  } else {
+
+    positions = [
+
+      {
+        top: "10%",
+        left: "8%"
+      },
+
+      {
+        top: "60%",
+        left: "8%"
+      },
+
+      {
+        top: "10%",
+        right: "8%"
+      },
+
+      {
+        top: "60%",
+        right: "8%"
+      }
+
+    ];
+  }
+
+
+  files.forEach(
+    function (file, index) {
+
+      if (
+        index >=
+        positions.length
+      ) {
+        return;
+      }
+
+
+      const pos =
+        positions[index];
+
+
+      const fileType =
+        getFileType(
+          file.name
+        );
+
+
+      const label =
+        index === 0
+          ? "Student A"
+          : index === 1
+            ? "Student B"
+            : index === 2
+              ? "Student C"
+              : `File ${index + 1}`;
+
+
+      const chip =
+        index === 0
+          ? "S1"
+          : index === 1
+            ? "S2"
+            : index === 2
+              ? "S3"
+              : `F${index + 1}`;
+
+
+      const displayName =
+        file.name.length > 20
+          ? file.name.substring(
+              0,
+              18
+            ) + "..."
+          : file.name;
+
+
+      const doc =
+        document.createElement(
+          "div"
+        );
+
+
+      doc.className =
+        "a-doc";
+
+
+      doc.style.cssText =
+        `${pos.top ? `top:${pos.top};` : ""}` +
+        `${pos.left ? `left:${pos.left};` : ""}` +
+        `${pos.right ? `right:${pos.right};` : ""}`;
+
+
+      doc.innerHTML = `
+
+        <div class="a-doc-head">
+
+          <div
+            class="a-avatar"
+            style="background:var(${fileType.color})"
+          >
+            ${chip}
+          </div>
+
+          <div class="a-id">
+
+            <span class="a-name">
+              ${label}
+            </span>
+
+            <span class="a-fname">
+              ${displayName}
+            </span>
+
+          </div>
+
+        </div>
+
+        <div class="a-lines">
+
+          <div class="a-line">
+            <i
+              class="tag"
+              style="background:var(${fileType.color})"
+            >1</i>
+          </div>
+
+          <div class="a-line">
+            <i
+              class="tag"
+              style="background:var(${fileType.color})"
+            >2</i>
+          </div>
+
+          <div class="a-line">
+            <i
+              class="tag"
+              style="background:var(${fileType.color})"
+            >3</i>
+          </div>
+
+          <div class="a-line"></div>
+
+          <div class="a-line"></div>
+
+        </div>
+      `;
+
+
+      aStage.appendChild(doc);
+    }
+  );
+
+
+  if (!connectionsSvg) {
+    return;
+  }
+
+
+  const docs =
+    aStage.querySelectorAll(
+      ".a-doc"
+    );
+
+
+  const centerX = 50;
+  const centerY = 50;
+
+
+  docs.forEach(
+    function (doc) {
+
+      const rect =
+        doc.getBoundingClientRect();
+
+
+      const stageRect =
+        aStage.getBoundingClientRect();
+
+
+      if (
+        !stageRect.width ||
+        !stageRect.height
+      ) {
+        return;
+      }
+
+
+      const docLeft =
+        (
+          (rect.left - stageRect.left) /
+          stageRect.width
+        ) * 100;
+
+
+      const docTop =
+        (
+          (rect.top - stageRect.top) /
+          stageRect.height
+        ) * 100;
+
+
+      const docRight =
+        docLeft +
+        (
+          rect.width /
+          stageRect.width
+        ) * 100;
+
+
+      const docBottom =
+        docTop +
+        (
+          rect.height /
+          stageRect.height
+        ) * 100;
+
+
+      let startX;
+
+      let startY;
+
+
+      if (docLeft < 50) {
+        startX = docRight;
+      } else {
+        startX = docLeft;
+      }
+
+
+      if (docTop < 50) {
+        startY = docBottom;
+      } else {
+        startY = docTop;
+      }
+
+
+      const line =
+        document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "line"
+        );
+
+
+      line.setAttribute(
+        "x1",
+        startX
+      );
+
+      line.setAttribute(
+        "y1",
+        startY
+      );
+
+      line.setAttribute(
+        "x2",
+        centerX
+      );
+
+      line.setAttribute(
+        "y2",
+        centerY
+      );
+
+      line.setAttribute(
+        "stroke",
+        "var(--primary)"
+      );
+
+      line.setAttribute(
+        "stroke-width",
+        "2"
+      );
+
+      line.setAttribute(
+        "stroke-dasharray",
+        "6 8"
+      );
+
+
+      line.style.opacity = "0";
+
+
+      line.classList.add(
+        "connection-line"
+      );
+
+
+      connectionsSvg.appendChild(
+        line
+      );
+    }
+  );
+}
+
+
+/* =========================================================
+   ANIMATION CONFIG
+========================================================= */
+
 const stageNames = [
+
   "Reading assignments...",
 
   "Extracting text...",
@@ -276,331 +1120,2639 @@ const stageNames = [
 
   "Detecting matching content...",
 
-  "Generating final report...",
+  "Generating final report..."
+
 ];
 
-const progressValues = [10, 25, 42, 58, 74, 90, 100];
 
-const stageDelays = [800, 900, 800, 900, 1000, 900, 600];
+const progressValues = [
+  10,
+  25,
+  42,
+  58,
+  74,
+  90,
+  100
+];
 
-function updateProgress(percent, message) {
+
+const stageDelays = [
+  800,
+  900,
+  800,
+  900,
+  1000,
+  900,
+  600
+];
+
+
+/* =========================================================
+   UPDATE PROGRESS
+========================================================= */
+
+function updateProgress(
+  percent,
+  message
+) {
+
   if (progFill) {
-    progFill.style.width = percent + "%";
+    progFill.style.width =
+      percent + "%";
   }
+
 
   if (progPct) {
-    progPct.textContent = percent + "%";
+    progPct.textContent =
+      percent + "%";
   }
+
 
   if (progMsg) {
-    progMsg.textContent = message;
+    progMsg.textContent =
+      message;
   }
 
+
   if (aeStatus) {
-    aeStatus.textContent = message;
+    aeStatus.textContent =
+      message;
   }
 }
 
-// Analyze button
-analyzeBtn.addEventListener("click", async function () {
-  if (isRunning || fileList.length < 2) {
+
+/* =========================================================
+   COUNT UP
+========================================================= */
+
+function countUp(
+  element,
+  targetNumber
+) {
+
+  if (!element) {
     return;
   }
 
-  isRunning = true;
 
-  analyzeBtn.disabled = true;
-
-  setProgressStep(2);
-
-  showView(viewAnimation);
-
-  document.getElementById("animTitle").textContent =
-    "Comparing " + fileList.length + " assignments...";
-
-  aStage.classList.add("p-comparing", "p-scanning");
-
-  aEngine.classList.add("active");
-
-  updateProgress(progressValues[0], stageNames[0]);
-
-  await wait(stageDelays[0]);
-
-  // Process first two files
-  localChunks = [];
-
-  const filesToCompare = [fileList[0], fileList[1]];
-
-  for (let i = 0; i < filesToCompare.length; i++) {
-    const file = filesToCompare[i];
-
-    let content = "";
-
-    try {
-      content = await file.text();
-    } catch (error) {
-      content = "Content of " + file.name;
-    }
-
-    rawTextMap[file.name] = content;
-
-    // Create chunks
-    const chunks = createChunksLinear(content, 100);
-
-    // Create 4-grams
-    for (let j = 0; j < chunks.length; j++) {
-      chunks[j].grams = buildthegrams(chunks[j], 4);
-    }
-
-    localChunks[i] = chunks;
-
-    // Save to JSON Server
-    const data = {
-      filename: file.name,
-
-      filesize: file.size,
-
-      chunks: chunks,
-    };
-
-    try {
-      await fetch("http://localhost:3000/users", {
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/json",
-        },
-
-        body: JSON.stringify(data),
-      });
-    } catch (error) {
-      console.log("JSON Server notice:", error.message);
-    }
-  }
-
-  // Run animation
-  const stageElements = aEngine.querySelectorAll(".ae-stage");
-
-  for (let i = 0; i < stageElements.length; i++) {
-    updateProgress(progressValues[i + 1], stageNames[i + 1]);
-
-    stageElements[i].classList.add("active");
-
-    await wait(stageDelays[i + 1] || 700);
-
-    stageElements[i].classList.remove("active");
-
-    stageElements[i].classList.add("done");
-  }
-
-  // Run actual algorithm
-  const reportData = await applyalgo(filesToCompare, localChunks);
-const completeReport = {
-  score: reportData,
-  files: filesToCompare.map(function (file) {
-    return {
-      name: file.name,
-      size: file.size,
-      type: file.type
-    };
-  }),
-  text: {
-    [filesToCompare[0].name]: rawTextMap[filesToCompare[0].name] || "",
-    [filesToCompare[1].name]: rawTextMap[filesToCompare[1].name] || ""
-  },
-  chunks: localChunks.map(function (chunks) {
-    return chunks;
-  }),
-  generatedAt: new Date().toISOString()
-};
-sessionStorage.setItem(
-  "assignCheckReport",
-  JSON.stringify(completeReport)
-);
-
-displayResults(filesToCompare, reportData);
-
-  aStage.classList.remove("p-scanning");
-
-  aEngine.classList.remove("active");
-
-  aEngine.classList.add("done");
-
-  animStatusText.textContent = "Complete";
-
-  animStatus.classList.add("done");
-
-  await wait(700);
+  targetNumber =
+    Number(targetNumber) || 0;
 
 
+  targetNumber =
+    Math.min(
+      100,
+      Math.max(
+        0,
+        Math.round(targetNumber)
+      )
+    );
 
-  setProgressStep(3);
 
-  showView(viewResults);
-});
-
-// Count percentage
-function countUp(element, targetNumber) {
   let current = 0;
 
-  const increment = Math.max(1, Math.ceil(targetNumber / 30));
 
-  const timer = setInterval(function () {
-    current += increment;
+  const increment =
+    Math.max(
+      1,
+      Math.ceil(
+        targetNumber / 30
+      )
+    );
 
-    if (current >= targetNumber) {
-      current = targetNumber;
 
-      clearInterval(timer);
-    }
+  const timer =
+    setInterval(
+      function () {
 
-    element.textContent = current + "%";
-  }, 25);
+        current += increment;
+
+
+        if (
+          current >=
+          targetNumber
+        ) {
+
+          current =
+            targetNumber;
+
+          clearInterval(timer);
+        }
+
+
+        element.textContent =
+          current + "%";
+
+      },
+      25
+    );
 }
 
-// Show results
-function displayResults(files, score) {
-  const roundedScore = Math.min(100, Math.max(0, Math.round(score)));
 
-  const scoreElement = document.getElementById("resSimilarity");
+/* =========================================================
+   ANALYZE BUTTON
+========================================================= */
 
-  countUp(scoreElement, roundedScore);
+if (analyzeBtn) {
 
-  const fileA = files[0];
+  analyzeBtn.addEventListener(
+    "click",
+    async function () {
 
-  const fileB = files[1];
+      if (
+        isRunning ||
+        fileList.length < 2
+      ) {
+        return;
+      }
 
-  document.getElementById("pairLeft").textContent = fileA.name;
 
-  document.getElementById("pairRight").textContent = fileB.name;
+      try {
 
-  document.getElementById("pairSub").textContent =
-    "Comparison between " + fileA.name + " and " + fileB.name;
+        /* ---------------------------------------------
+           START
+        --------------------------------------------- */
 
-  document.getElementById("panelAName").textContent = fileA.name;
+        isRunning = true;
 
-  document.getElementById("panelBName").textContent = fileB.name;
+        analyzeBtn.disabled = true;
 
-  const textA = rawTextMap[fileA.name] || "No content extracted.";
 
-  const textB = rawTextMap[fileB.name] || "No content extracted.";
+        setProgressStep(2);
 
-  document.getElementById("panelABody").innerHTML =
-    formatTextToParagraphs(textA);
+        showView(viewAnimation);
 
-  document.getElementById("panelBBody").innerHTML =
-    formatTextToParagraphs(textB);
 
-  document.getElementById("mFiles").textContent = files.length;
+        const animTitle =
+          document.getElementById(
+            "animTitle"
+          );
 
-  let matching = 0;
 
-  if (roundedScore > 0) {
-    matching = Math.ceil(roundedScore / 10);
+        if (animTitle) {
+
+          animTitle.textContent =
+            "Comparing " +
+            fileList.length +
+            " assignments...";
+        }
+
+
+        createAnimationDocs(
+          fileList
+        );
+
+
+        if (aStage) {
+
+          aStage.classList.add(
+            "p-comparing",
+            "p-scanning"
+          );
+        }
+
+
+        if (aEngine) {
+
+          aEngine.classList.add(
+            "active"
+          );
+        }
+
+
+        if (animStatus) {
+
+          animStatus.className =
+            "anim-status";
+        }
+
+
+        if (animStatusText) {
+
+          animStatusText.textContent =
+            "Running";
+        }
+
+
+        updateProgress(
+          progressValues[0],
+          stageNames[0]
+        );
+
+
+        await wait(
+          stageDelays[0]
+        );
+
+
+        /* ---------------------------------------------
+           RESET DATA
+        --------------------------------------------- */
+
+        localChunks = [];
+
+        rawTextMap = {};
+
+
+        /* ---------------------------------------------
+           PROCESS FIRST TWO FILES
+        --------------------------------------------- */
+
+        const filesToProcess = [
+
+          fileList[0],
+
+          fileList[1]
+
+        ];
+
+
+        for (
+          let i = 0;
+          i < filesToProcess.length;
+          i++
+        ) {
+
+          const file =
+            filesToProcess[i];
+
+
+          let content = "";
+
+
+          try {
+
+            content =
+              await file.text();
+
+          } catch (error) {
+
+            console.error(
+              "Could not read file:",
+              file.name,
+              error
+            );
+
+            content = "";
+          }
+
+
+          rawTextMap[
+            file.name
+          ] = content;
+
+
+          /* -----------------------------------------
+             CREATE CHUNKS
+          ----------------------------------------- */
+
+          const chunks =
+            createChunksLinear(
+              content,
+              100
+            );
+
+
+          /* -----------------------------------------
+             CREATE 4 GRAMS
+          ----------------------------------------- */
+
+          for (
+            let j = 0;
+            j < chunks.length;
+            j++
+          ) {
+
+            chunks[j].grams =
+              buildthegrams(
+                chunks[j],
+                4
+              );
+          }
+
+
+          localChunks[i] =
+            chunks;
+
+
+          /* -----------------------------------------
+             SAVE FILE DATA
+          ----------------------------------------- */
+
+          const email =
+            localStorage.getItem(
+              "userEmail"
+            );
+
+
+          if (email) {
+
+            try {
+
+              const response =
+                await fetch(
+                  `http://localhost:3000/filedata?email=${encodeURIComponent(email)}`
+                );
+
+
+              if (!response.ok) {
+                throw new Error(
+                  "filedata request failed: " +
+                  response.status
+                );
+              }
+
+
+              const users =
+                await response.json();
+
+
+              if (
+                users &&
+                users.length > 0
+              ) {
+
+                const user =
+                  users[0];
+
+
+                if (
+                  !Array.isArray(
+                    user.filedetails
+                  )
+                ) {
+
+                  user.filedetails = [];
+                }
+
+
+                user.filedetails.push({
+
+                  filename:
+                    file.name,
+
+                  filesize:
+                    file.size,
+
+                  chunks:
+                    chunks,
+
+                  results: []
+
+                });
+
+
+                await fetch(
+                  `http://localhost:3000/filedata/${user.id}`,
+                  {
+
+                    method: "PUT",
+
+                    headers: {
+                      "Content-Type":
+                        "application/json"
+                    },
+
+                    body:
+                      JSON.stringify(user)
+
+                  }
+                );
+
+
+                console.log(
+                  "File data saved:",
+                  file.name
+                );
+
+              } else {
+
+                const newRecord = {
+
+                  email:
+                    email,
+
+                  filedetails: [
+                    {
+                      filename:
+                        file.name,
+
+                      filesize:
+                        file.size,
+
+                      chunks:
+                        chunks,
+
+                      results: []
+                    }
+                  ]
+
+                };
+
+
+                const saveResponse =
+                  await fetch(
+                    "http://localhost:3000/filedata",
+                    {
+
+                      method: "POST",
+
+                      headers: {
+                        "Content-Type":
+                          "application/json"
+                      },
+
+                      body:
+                        JSON.stringify(
+                          newRecord
+                        )
+
+                    }
+                  );
+
+
+                if (!saveResponse.ok) {
+
+                  throw new Error(
+                    "filedata POST failed: " +
+                    saveResponse.status
+                  );
+                }
+
+
+                console.log(
+                  "File data created and saved:",
+                  file.name
+                );
+              }
+
+            } catch (error) {
+
+              console.error(
+                "Filedata save failed:",
+                error
+              );
+
+              /*
+                 IMPORTANT:
+                 Filedata save fail hone se
+                 analysis stop NAHI hoga.
+              */
+            }
+          }
+        }
+
+
+        /* ---------------------------------------------
+           ANIMATION STAGES
+        --------------------------------------------- */
+
+        const stageElements =
+          aEngine
+            ? aEngine.querySelectorAll(
+                ".ae-stage"
+              )
+            : [];
+
+
+        const lines =
+          aStage
+            ? aStage.querySelectorAll(
+                ".connection-line"
+              )
+            : [];
+
+
+        const docs =
+          aStage
+            ? aStage.querySelectorAll(
+                ".a-doc"
+              )
+            : [];
+
+
+        for (
+          let i = 0;
+          i < stageElements.length;
+          i++
+        ) {
+
+          updateProgress(
+            progressValues[i + 1],
+            stageNames[i + 1]
+          );
+
+
+          stageElements[i]
+            .classList
+            .add("active");
+
+
+          if (i >= 3) {
+
+            lines.forEach(
+              function (line, idx) {
+
+                if (
+                  idx <= i - 3
+                ) {
+
+                  line.style.opacity =
+                    "0.6";
+
+                  line.style.animation =
+                    "dashflow 1.4s linear infinite";
+                }
+              }
+            );
+
+
+            docs.forEach(
+              function (
+                doc,
+                docIdx
+              ) {
+
+                const linesInDoc =
+                  doc.querySelectorAll(
+                    ".a-line"
+                  );
+
+
+                const lineIndex =
+                  i - 3;
+
+
+                if (
+                  linesInDoc[
+                    lineIndex
+                  ] &&
+                  lineIndex <
+                    linesInDoc.length
+                ) {
+
+                  setTimeout(
+                    function () {
+
+                      linesInDoc[
+                        lineIndex
+                      ].classList.add(
+                        "found",
+                        `hl-${(docIdx % 2) + 1}`
+                      );
+
+                    },
+                    docIdx * 200
+                  );
+                }
+              }
+            );
+          }
+
+
+          await wait(
+            stageDelays[i + 1] ||
+            700
+          );
+
+
+          stageElements[i]
+            .classList
+            .remove("active");
+
+
+          stageElements[i]
+            .classList
+            .add("done");
+        }
+
+
+        /* ---------------------------------------------
+           REAL SIMILARITY ALGORITHM
+        --------------------------------------------- */
+
+        console.log(
+          "Running similarity algorithm..."
+        );
+
+
+        const realScore =
+          await applyalgo(
+            filesToProcess,
+            localChunks
+          );
+
+
+        console.log(
+          "Similarity score:",
+          realScore
+        );
+
+
+        /* ---------------------------------------------
+           FINISH ANIMATION
+        --------------------------------------------- */
+
+        if (aStage) {
+
+          aStage.classList.remove(
+            "p-scanning"
+          );
+        }
+
+
+        if (aEngine) {
+
+          aEngine.classList.remove(
+            "active"
+          );
+
+          aEngine.classList.add(
+            "done"
+          );
+        }
+
+
+        if (animStatusText) {
+
+          animStatusText.textContent =
+            "Complete";
+        }
+
+
+        if (animStatus) {
+
+          animStatus.classList.add(
+            "done"
+          );
+        }
+
+
+        updateProgress(
+          100,
+          "Generating final report..."
+        );
+
+
+        await wait(700);
+
+
+        /* ---------------------------------------------
+           DISPLAY RESULT
+           
+           THIS WAS MISSING IN YOUR CODE
+        --------------------------------------------- */
+
+        await displayResults(
+          filesToProcess,
+          realScore
+        );
+
+
+        /* ---------------------------------------------
+           IMPORTANT:
+           RESULT VIEW
+        --------------------------------------------- */
+
+        setProgressStep(3);
+
+        showView(viewResults);
+
+
+        if (viewResults) {
+
+          viewResults.classList.add(
+            "active"
+          );
+        }
+
+
+        window.scrollTo({
+          top: 0,
+          behavior: "smooth"
+        });
+
+
+      } catch (error) {
+
+        /* ---------------------------------------------
+           ONLY REAL ANALYSIS ERROR COMES HERE
+        --------------------------------------------- */
+
+        console.error(
+          "ANALYSIS FAILED:",
+          error
+        );
+
+
+        alert(
+          "Analysis failed. Please check the browser console."
+        );
+
+
+        showView(
+          viewUpload
+        );
+
+
+        setProgressStep(1);
+
+
+      } finally {
+
+        isRunning = false;
+
+
+        if (analyzeBtn) {
+
+          analyzeBtn.disabled =
+            fileList.length < 2;
+        }
+      }
+
+    }
+  );
+}
+
+
+/* =========================================================
+   DISPLAY RESULTS
+   IMPORTANT FIX
+========================================================= */
+
+async function displayResults(
+  files,
+  score
+) {
+
+  console.log(
+    "displayResults() started"
+  );
+
+
+  if (
+    !files ||
+    files.length < 2
+  ) {
+
+    throw new Error(
+      "Two files are required for result."
+    );
   }
 
-  document.getElementById("mMatching").textContent = matching;
+
+  const fileA =
+    files[0];
+
+  const fileB =
+    files[1];
+
+
+  const email =
+    localStorage.getItem(
+      "userEmail"
+    );
+
+
+  /* ---------------------------------------------
+     GET TEXT
+  --------------------------------------------- */
+
+  const textA =
+    rawTextMap[fileA.name] ||
+    "";
+
+
+  const textB =
+    rawTextMap[fileB.name] ||
+    "";
+
+
+  /* ---------------------------------------------
+     SCORE
+  --------------------------------------------- */
+
+  const numericScore =
+    Number(score) || 0;
+
+
+  const roundedScore =
+    Math.min(
+      100,
+      Math.max(
+        0,
+        Math.round(numericScore)
+      )
+    );
+
+
+  /* ---------------------------------------------
+     COMMON GRAMS
+  --------------------------------------------- */
+
+  let commonGramsSet =
+    new Set();
+
+
+  try {
+
+    commonGramsSet =
+      getthecommongrams();
+
+  } catch (error) {
+
+    console.warn(
+      "Could not get common grams:",
+      error
+    );
+
+    commonGramsSet =
+      new Set();
+  }
+
+
+  if (!commonGramsSet) {
+
+    commonGramsSet =
+      new Set();
+  }
+
+
+  /* ---------------------------------------------
+     RECONSTRUCT MATCHES
+  --------------------------------------------- */
+
+  const reconstructed =
+    reconstructMatchesFromGrams(
+      textA,
+      textB,
+      commonGramsSet
+    );
+
+
+  const matchesA =
+    reconstructed.matchesA || [];
+
+
+  const matchesB =
+    reconstructed.matchesB || [];
+
+
+  /* ---------------------------------------------
+     CHUNK COUNTS
+  --------------------------------------------- */
+
+  const chunkCountA =
+    localChunks[0]
+      ? localChunks[0].length
+      : 0;
+
+
+  const chunkCountB =
+    localChunks[1]
+      ? localChunks[1].length
+      : 0;
+
+
+  /* ---------------------------------------------
+     RESULT OBJECT
+  --------------------------------------------- */
+
+  const result = {
+
+    filenames: [
+      fileA.name,
+      fileB.name
+    ],
+
+    filefirstmatches:
+      matchesA,
+
+    filesecondmatches:
+      matchesB,
+
+    similarwords:
+      commonGramsSet instanceof Set
+        ? commonGramsSet.size
+        : Array.isArray(commonGramsSet)
+          ? commonGramsSet.length
+          : 0,
+
+    roundedscore:
+      roundedScore,
+
+    textA:
+      textA,
+
+    textB:
+      textB,
+
+    chunkCountA:
+      chunkCountA,
+
+    chunkCountB:
+      chunkCountB,
+
+    commonPhrases:
+      extractCommonPhrases(matchesA, textA, textB),
+
+    spellingMistakesA:
+      detectSpellingMistakes(textA, fileA.name),
+
+    spellingMistakesB:
+      detectSpellingMistakes(textB, fileB.name),
+
+    date:
+      new Date().toISOString()
+  };
+
+
+  console.log(
+    "FINAL RESULT:",
+    result
+  );
+
+
+  /* ---------------------------------------------
+     SAVE LOCAL SESSION FIRST
+     
+     Even if JSON server fails,
+     result will still display.
+  --------------------------------------------- */
+
+  try {
+
+    sessionStorage.setItem(
+      "showsthedisplayornot",
+      "true"
+    );
+
+
+    sessionStorage.setItem(
+      "lastAnalysisResult",
+      JSON.stringify(result)
+    );
+
+    sessionStorage.setItem(
+      "reportData",
+      JSON.stringify(result)
+    );
+
+  } catch (error) {
+
+    console.warn(
+      "Session storage failed:",
+      error
+    );
+  }
+
+
+  /* ---------------------------------------------
+     RENDER RESULT IMMEDIATELY
+     
+     IMPORTANT:
+     Result should NOT wait for database.
+  --------------------------------------------- */
+
+  try {
+
+    renderUI(result);
+
+    console.log(
+      "Result UI rendered successfully."
+    );
+
+  } catch (error) {
+
+    console.error(
+      "Result UI render failed:",
+      error
+    );
+  }
+
+
+  /* ---------------------------------------------
+     SAVE RESULT TO JSON SERVER
+     
+     Database failure will NOT send user
+     back to upload page.
+  --------------------------------------------- */
+
+  if (email) {
+
+    try {
+
+      const response =
+        await fetch(
+          `http://localhost:3000/fileresult?email=${encodeURIComponent(email)}`
+        );
+
+
+      if (!response.ok) {
+
+        throw new Error(
+          "fileresult GET failed: " +
+          response.status
+        );
+      }
+
+
+      const data =
+        await response.json();
+
+
+      if (
+        data &&
+        data.length > 0
+      ) {
+
+        const reportUser =
+          data[0];
+
+
+        if (
+          !Array.isArray(
+            reportUser.filesprocesed
+          )
+        ) {
+
+          reportUser.filesprocesed = [];
+        }
+
+
+        reportUser.filesprocesed.push(
+          result
+        );
+
+
+        const saveResponse =
+          await fetch(
+            `http://localhost:3000/fileresult/${reportUser.id}`,
+            {
+
+              method: "PUT",
+
+              headers: {
+                "Content-Type":
+                  "application/json"
+              },
+
+              body:
+                JSON.stringify(
+                  reportUser
+                )
+            }
+          );
+
+
+        if (!saveResponse.ok) {
+
+          throw new Error(
+            "fileresult PUT failed: " +
+            saveResponse.status
+          );
+        }
+
+
+        console.log(
+          "Result saved to database successfully."
+        );
+
+      } else {
+
+        const newReportUser = {
+
+          email:
+            email,
+
+          filesprocesed: [
+            result
+          ]
+
+        };
+
+
+        const createResponse =
+          await fetch(
+            "http://localhost:3000/fileresult",
+            {
+
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json"
+              },
+
+              body:
+                JSON.stringify(
+                  newReportUser
+                )
+            }
+          );
+
+
+        if (!createResponse.ok) {
+
+          throw new Error(
+            "fileresult POST failed: " +
+            createResponse.status
+          );
+        }
+
+
+        console.log(
+          "Result record created and saved to database successfully."
+        );
+      }
+
+      // Also save report record to /reports for history and detailed report
+      try {
+        const reportEntry = {
+          email: email,
+          files: [fileA.name, fileB.name],
+          type: currentMode,
+          similarity: roundedScore,
+          matchingSections: Array.isArray(result.commonPhrases) ? result.commonPhrases.length : 0,
+          differentSections: Math.max(1, 10 - Math.ceil(roundedScore / 10)),
+          matchingPhrases: Array.isArray(result.commonPhrases) ? result.commonPhrases.length : 0,
+          spellingMistakes: ((result.spellingMistakesA || []).length + (result.spellingMistakesB || []).length),
+          date: new Date().toISOString(),
+          textA: textA,
+          textB: textB,
+          filefirstmatches: matchesA,
+          filesecondmatches: matchesB
+        };
+
+        await fetch("http://localhost:3000/reports", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(reportEntry)
+        });
+      } catch (repErr) {
+        console.warn("Could not save to /reports:", repErr);
+      }
+
+    } catch (error) {
+
+      /*
+         VERY IMPORTANT:
+
+         Database error should NOT throw
+         and should NOT trigger the main
+         analysis catch block.
+      */
+
+      console.error(
+        "Failed to save result to database:",
+        error
+      );
+    }
+  }
+
+
+  /* ---------------------------------------------
+     RETURN RESULT
+  --------------------------------------------- */
+
+  return result;
+}
+
+
+/* =========================================================
+   RENDER UI
+========================================================= */
+
+function renderUI(result) {
+
+  if (!result) {
+
+    console.error(
+      "renderUI(): result missing."
+    );
+
+    return;
+  }
+
+
+  const roundedScore =
+    Number(
+      result.roundedscore
+    ) || 0;
+
+
+  /* ---------------------------------------------
+     SCORE
+  --------------------------------------------- */
+
+  const scoreElement =
+    document.getElementById(
+      "resSimilarity"
+    );
+
+
+  if (scoreElement) {
+
+    scoreElement.textContent =
+      "0%";
+
+
+    countUp(
+      scoreElement,
+      roundedScore
+    );
+  }
+
+
+  /* ---------------------------------------------
+     FILENAMES
+  --------------------------------------------- */
+
+  const filenames =
+    Array.isArray(
+      result.filenames
+    )
+      ? result.filenames
+      : [];
+
+
+  const fileAName =
+    filenames[0] || "File 1";
+
+
+  const fileBName =
+    filenames[1] || "File 2";
+
+
+  const pairLeft =
+    document.getElementById(
+      "pairLeft"
+    );
+
+
+  const pairRight =
+    document.getElementById(
+      "pairRight"
+    );
+
+
+  const panelAName =
+    document.getElementById(
+      "panelAName"
+    );
+
+
+  const panelBName =
+    document.getElementById(
+      "panelBName"
+    );
+
+
+  if (pairLeft) {
+
+    pairLeft.textContent =
+      fileAName;
+  }
+
+
+  if (pairRight) {
+
+    pairRight.textContent =
+      fileBName;
+  }
+
+
+  if (panelAName) {
+
+    panelAName.textContent =
+      fileAName;
+  }
+
+
+  if (panelBName) {
+
+    panelBName.textContent =
+      fileBName;
+  }
+
+
+  /* ---------------------------------------------
+     FILE TYPE
+  --------------------------------------------- */
+
+  const typeA =
+    getFileType(
+      fileAName
+    );
+
+
+  const typeB =
+    getFileType(
+      fileBName
+    );
+
+
+  const panelAFmt =
+    document.getElementById(
+      "panelAFmt"
+    );
+
+
+  const panelBFmt =
+    document.getElementById(
+      "panelBFmt"
+    );
+
+
+  if (panelAFmt) {
+
+    panelAFmt.textContent =
+      typeA.label;
+  }
+
+
+  if (panelBFmt) {
+
+    panelBFmt.textContent =
+      typeB.label;
+  }
+
+
+  /* ---------------------------------------------
+     TEXT
+  --------------------------------------------- */
+
+  const textA =
+    result.textA ||
+    "No content extracted.";
+
+
+  const textB =
+    result.textB ||
+    "No content extracted.";
+
+
+  const matchesA =
+    Array.isArray(
+      result.filefirstmatches
+    )
+      ? result.filefirstmatches
+      : [];
+
+
+  const matchesB =
+    Array.isArray(
+      result.filesecondmatches
+    )
+      ? result.filesecondmatches
+      : [];
+
+
+  const panelABody =
+    document.getElementById(
+      "panelABody"
+    );
+
+
+  const panelBBody =
+    document.getElementById(
+      "panelBBody"
+    );
+
+
+  const typosA =
+    detectSpellingMistakes(
+      textA,
+      fileAName
+    );
+
+  const typosB =
+    detectSpellingMistakes(
+      textB,
+      fileBName
+    );
+
+  if (panelABody) {
+
+    panelABody.innerHTML =
+      highlightTextWithMatchesAndTypos(
+        textA,
+        matchesA,
+        typosA
+      );
+  }
+
+
+  if (panelBBody) {
+
+    panelBBody.innerHTML =
+      highlightTextWithMatchesAndTypos(
+        textB,
+        matchesB,
+        typosB
+      );
+  }
+
+
+  /* ---------------------------------------------
+     STATS
+  --------------------------------------------- */
+
+  const mFiles =
+    document.getElementById(
+      "mFiles"
+    );
+
+
+  const mMatching =
+    document.getElementById(
+      "mMatching"
+    );
+
+
+  const mDifferent =
+    document.getElementById(
+      "mDifferent"
+    );
+
+
+  const mPhrases =
+    document.getElementById(
+      "mPhrases"
+    );
+
+
+  if (mFiles) {
+
+    mFiles.textContent =
+      filenames.length;
+  }
+
+
+  if (mMatching) {
+
+    mMatching.textContent =
+      result.similarwords || 0;
+  }
+
 
   let different = 0;
 
+
   if (roundedScore < 100) {
-    different = 10 - Math.ceil(roundedScore / 10);
+
+    different =
+      10 -
+      Math.ceil(
+        roundedScore / 10
+      );
+
 
     if (different < 1) {
       different = 1;
     }
   }
 
-  document.getElementById("mDifferent").textContent = different;
 
-  document.getElementById("mPhrases").textContent = Math.round(
-    roundedScore * 0.5,
-  );
+  if (mDifferent) {
 
-  const firstChunkCount = localChunks[0] ? localChunks[0].length : 0;
+    mDifferent.textContent =
+      different;
+  }
 
-  const secondChunkCount = localChunks[1] ? localChunks[1].length : 0;
 
-  document.getElementById("diffList").innerHTML =
-    "<li>File 1 has <b>" +
-    firstChunkCount +
-    " chunks</b> (100 words per chunk).</li>" +
-    "<li>File 2 has <b>" +
-    secondChunkCount +
-    " chunks</b> (100 words per chunk).</li>" +
-    "<li>Calculated Jaccard similarity across all 4-gram sets: <b>" +
-    roundedScore +
-    "%</b>.</li>";
+  if (mPhrases) {
 
-  document.getElementById("matchList").innerHTML =
-    "<li>Processed using sliding 4-gram overlapping windows.</li>" +
-    "<li>" +
-    (roundedScore > 20
-      ? "Significant matching phrases detected."
-      : "Low phrase similarity across sections.") +
-    "</li>";
+    mPhrases.textContent =
+      Math.round(
+        roundedScore * 0.5
+      );
+  }
+
+
+  /* ---------------------------------------------
+     DIFFERENCE LIST
+  --------------------------------------------- */
+
+  const diffList =
+    document.getElementById(
+      "diffList"
+    );
+
+
+  if (diffList) {
+
+    diffList.innerHTML =
+
+      "<li>File 1 has <b>" +
+      (result.chunkCountA || 0) +
+      " chunks</b> (100 words per chunk).</li>" +
+
+      "<li>File 2 has <b>" +
+      (result.chunkCountB || 0) +
+      " chunks</b> (100 words per chunk).</li>" +
+
+      "<li>Calculated Jaccard similarity across all 4-gram sets: <b>" +
+      roundedScore +
+      "%</b>.</li>";
+  }
+
+
+  /* ---------------------------------------------
+     MATCH LIST
+  --------------------------------------------- */
+
+  const matchList =
+    document.getElementById(
+      "matchList"
+    );
+
+
+  if (matchList) {
+
+    matchList.innerHTML =
+
+      "<li>Processed using sliding 4-gram overlapping windows.</li>" +
+
+      "<li>" +
+
+      (
+        roundedScore > 20
+          ? "Significant matching phrases detected."
+          : "Low phrase similarity across sections."
+      ) +
+
+      "</li>";
+  }
+
+
+  /* ---------------------------------------------
+     FORCE RESULT VIEW
+  --------------------------------------------- */
+
+  if (viewResults) {
+
+    viewResults.classList.add(
+      "active"
+    );
+  }
 }
 
-// Convert text into paragraphs
+
+/* =========================================================
+   LOAD LAST SESSION
+========================================================= */
+
+async function loadLastSession() {
+
+  const email =
+    localStorage.getItem(
+      "userEmail"
+    );
+
+
+  if (!email) {
+    return;
+  }
+
+
+  /*
+     First check sessionStorage.
+     This prevents unnecessary database
+     loading immediately after analysis.
+  */
+
+  try {
+
+    const saved =
+      sessionStorage.getItem(
+        "lastAnalysisResult"
+      );
+
+
+    if (saved) {
+
+      const lastResult =
+        JSON.parse(saved);
+
+
+      if (
+        lastResult &&
+        lastResult.filenames
+      ) {
+
+        setProgressStep(3);
+
+        renderUI(
+          lastResult
+        );
+
+        showView(
+          viewResults
+        );
+
+
+        console.log(
+          "Loaded result from sessionStorage."
+        );
+
+
+        /*
+           Return here.
+           Otherwise DB result could overwrite
+           the current fresh result.
+        */
+
+        return;
+      }
+    }
+
+  } catch (error) {
+
+    console.warn(
+      "Session result could not be loaded:",
+      error
+    );
+  }
+
+
+  /* ---------------------------------------------
+     DATABASE FALLBACK
+  --------------------------------------------- */
+
+  try {
+
+    const response =
+      await fetch(
+        `http://localhost:3000/fileresult?email=${encodeURIComponent(email)}`
+      );
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        "Could not fetch fileresult: " +
+        response.status
+      );
+    }
+
+
+    const resp =
+      await response.json();
+
+
+    if (
+      resp &&
+      resp.length > 0 &&
+      Array.isArray(
+        resp[0].filesprocesed
+      ) &&
+      resp[0].filesprocesed.length > 0
+    ) {
+
+      const person =
+        resp[0];
+
+
+      const lastResult =
+        person.filesprocesed[
+          person.filesprocesed.length - 1
+        ];
+
+
+      if (lastResult) {
+
+        setProgressStep(3);
+
+        renderUI(
+          lastResult
+        );
+
+        showView(
+          viewResults
+        );
+
+
+        console.log(
+          "Loaded last session from database."
+        );
+      }
+    }
+
+  } catch (error) {
+
+    console.error(
+      "Failed to load last session:",
+      error
+    );
+  }
+}
+
+
+/* =========================================================
+   NEW ANALYSIS
+========================================================= */
+
+const newAnalysisBtn =
+  document.getElementById(
+    "newAnalysisBtn"
+  );
+
+const viewReportBtn =
+  document.getElementById(
+    "viewReportBtn"
+  );
+
+if (viewReportBtn) {
+  viewReportBtn.addEventListener(
+    "click",
+    function () {
+      window.location.href = "DetailedReport.html";
+    }
+  );
+}
+
+if (newAnalysisBtn) {
+
+  newAnalysisBtn.addEventListener(
+    "click",
+    function () {
+
+      isRunning = false;
+
+
+      fileList = [];
+
+
+      localChunks = [];
+
+
+      rawTextMap = {};
+
+
+      /*
+         Clear current saved session
+         so old result does not come back.
+      */
+
+      sessionStorage.removeItem(
+        "lastAnalysisResult"
+      );
+
+
+      sessionStorage.removeItem(
+        "showsthedisplayornot"
+      );
+
+
+      /* -----------------------------------------
+         RESET ANIMATION
+      ----------------------------------------- */
+
+      if (aEngine) {
+
+        const stages =
+          aEngine.querySelectorAll(
+            ".ae-stage"
+          );
+
+
+        for (
+          let i = 0;
+          i < stages.length;
+          i++
+        ) {
+
+          stages[i].className =
+            "ae-stage";
+        }
+
+
+        aEngine.className =
+          "a-engine";
+      }
+
+
+      if (aStage) {
+
+        aStage.className =
+          "anim-stage";
+
+
+        const docs =
+          aStage.querySelectorAll(
+            ".a-doc"
+          );
+
+
+        docs.forEach(
+          function (doc) {
+            doc.remove();
+          }
+        );
+
+
+        const lines =
+          aStage.querySelectorAll(
+            ".connection-line"
+          );
+
+
+        lines.forEach(
+          function (line) {
+            line.remove();
+          }
+        );
+      }
+
+
+      if (animStatus) {
+
+        animStatus.className =
+          "anim-status";
+      }
+
+
+      if (animStatusText) {
+
+        animStatusText.textContent =
+          "Running";
+      }
+
+
+      /* -----------------------------------------
+         RESET PROGRESS
+      ----------------------------------------- */
+
+      updateProgress(
+        0,
+        "Ready to analyze..."
+      );
+
+
+      renderFileList();
+
+      checkButtonState();
+
+
+      setProgressStep(1);
+
+      showView(
+        viewUpload
+      );
+
+
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+      });
+    }
+  );
+}
+
+
+/* =========================================================
+   FORMAT TEXT TO PARAGRAPHS
+========================================================= */
+
 function formatTextToParagraphs(text) {
-  const lines = text.split(/\n+/);
+
+  if (!text) {
+    return "";
+  }
+
+
+  const lines =
+    String(text).split(
+      /\n+/
+    );
+
 
   let result = "";
 
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].trim().length > 0) {
-      result += "<p>" + lines[i] + "</p>";
+
+  for (
+    let i = 0;
+    i < lines.length;
+    i++
+  ) {
+
+    if (
+      lines[i].trim().length > 0
+    ) {
+
+      result +=
+        "<p>" +
+        lines[i] +
+        "</p>";
     }
   }
+
 
   return result;
 }
 
-// New analysis button
-const newAnalysisBtn = document.getElementById("newAnalysisBtn");
 
-if (newAnalysisBtn) {
-  newAnalysisBtn.addEventListener("click", function () {
-    isRunning = false;
+/* =========================================================
+   RECONSTRUCT MATCHES
+========================================================= */
 
-    fileList.length = 0;
+export function reconstructMatchesFromGrams(
+  textA,
+  textB,
+  commonGramsSet,
+  gramSize = 4
+) {
 
-    localChunks = [];
+  if (!textA || !textB) {
 
-    rawTextMap = {};
+    return {
+      matchesA: [],
+      matchesB: []
+    };
+  }
 
-    const stages = aEngine.querySelectorAll(".ae-stage");
 
-    for (let i = 0; i < stages.length; i++) {
-      stages[i].className = "ae-stage";
+  const wordsA =
+    textA
+      .trim()
+      .split(/\s+/);
+
+
+  const wordsB =
+    textB
+      .trim()
+      .split(/\s+/);
+
+
+  const cleanA =
+    wordsA.map(
+      function (w) {
+
+        return w
+          .toLowerCase()
+          .replace(
+            /[^a-z0-9]/g,
+            ""
+          );
+      }
+    );
+
+
+  const cleanB =
+    wordsB.map(
+      function (w) {
+
+        return w
+          .toLowerCase()
+          .replace(
+            /[^a-z0-9]/g,
+            ""
+          );
+      }
+    );
+
+
+  /* ---------------------------------------------
+     NORMALIZE COMMON GRAMS
+  --------------------------------------------- */
+
+  const normalizedGrams =
+    new Set();
+
+
+  if (
+    commonGramsSet instanceof Set
+  ) {
+
+    commonGramsSet.forEach(
+      function (item) {
+
+        const str =
+          Array.isArray(item)
+            ? item
+                .join(" ")
+                .trim()
+                .toLowerCase()
+            : String(item)
+                .trim()
+                .toLowerCase();
+
+
+        normalizedGrams.add(
+          str
+        );
+      }
+    );
+
+  } else if (
+    Array.isArray(
+      commonGramsSet
+    )
+  ) {
+
+    commonGramsSet.forEach(
+      function (item) {
+
+        const str =
+          Array.isArray(item)
+            ? item
+                .join(" ")
+                .trim()
+                .toLowerCase()
+            : String(item)
+                .trim()
+                .toLowerCase();
+
+
+        normalizedGrams.add(
+          str
+        );
+      }
+    );
+  }
+
+
+  /* ---------------------------------------------
+     INDEX FILE B
+  --------------------------------------------- */
+
+  const mapB =
+    new Map();
+
+
+  for (
+    let j = 0;
+    j <= cleanB.length - gramSize;
+    j++
+  ) {
+
+    const gramB =
+      cleanB
+        .slice(
+          j,
+          j + gramSize
+        )
+        .join(" ");
+
+
+    if (
+      !gramB ||
+      gramB.includes("  ")
+    ) {
+      continue;
     }
 
-    aEngine.className = "a-engine";
 
-    aStage.className = "anim-stage";
+    if (
+      !mapB.has(gramB)
+    ) {
 
-    animStatus.className = "anim-status";
+      mapB.set(
+        gramB,
+        []
+      );
+    }
 
-    animStatusText.textContent = "Running";
 
-    renderFileList();
+    mapB
+      .get(gramB)
+      .push(j);
+  }
 
-    checkButtonState();
 
-    setProgressStep(1);
+  const visitedA =
+    new Array(
+      wordsA.length
+    ).fill(false);
 
-    showView(viewUpload);
-  });
+
+  const visitedB =
+    new Array(
+      wordsB.length
+    ).fill(false);
+
+
+  const matchesA = [];
+
+  const matchesB = [];
+
+
+  /* ---------------------------------------------
+     SCAN FILE A
+  --------------------------------------------- */
+
+  for (
+    let i = 0;
+    i <= cleanA.length - gramSize;
+    i++
+  ) {
+
+    if (
+      visitedA[i]
+    ) {
+      continue;
+    }
+
+
+    const currentGram =
+      cleanA
+        .slice(
+          i,
+          i + gramSize
+        )
+        .join(" ");
+
+
+    if (
+      normalizedGrams.has(
+        currentGram
+      ) &&
+      mapB.has(
+        currentGram
+      )
+    ) {
+
+      const matchIndicesB =
+        mapB.get(
+          currentGram
+        );
+
+
+      let bestK = 0;
+
+      let bestBIndex = -1;
+
+
+      for (
+        const j of matchIndicesB
+      ) {
+
+        let k = 0;
+
+
+        while (
+
+          i + k <
+            cleanA.length &&
+
+          j + k <
+            cleanB.length &&
+
+          cleanA[i + k] !== "" &&
+
+          cleanA[i + k] ===
+            cleanB[j + k]
+
+        ) {
+
+          k++;
+        }
+
+
+        if (
+          k > bestK
+        ) {
+
+          bestK = k;
+
+          bestBIndex = j;
+        }
+      }
+
+
+      if (
+        bestK >= gramSize
+      ) {
+
+        let isBVisited =
+          false;
+
+
+        for (
+          let v = bestBIndex;
+          v < bestBIndex + bestK;
+          v++
+        ) {
+
+          if (
+            visitedB[v]
+          ) {
+
+            isBVisited =
+              true;
+
+            break;
+          }
+        }
+
+
+        if (
+          !isBVisited
+        ) {
+
+          for (
+            let v = i;
+            v < i + bestK;
+            v++
+          ) {
+
+            visitedA[v] =
+              true;
+          }
+
+
+          for (
+            let v = bestBIndex;
+            v < bestBIndex + bestK;
+            v++
+          ) {
+
+            visitedB[v] =
+              true;
+          }
+
+
+          matchesA.push({
+
+            phrase:
+              wordsA
+                .slice(
+                  i,
+                  i + bestK
+                )
+                .join(" "),
+
+            startIndex:
+              i,
+
+            endIndex:
+              i + bestK,
+
+            length:
+              bestK
+
+          });
+
+
+          matchesB.push({
+
+            phrase:
+              wordsB
+                .slice(
+                  bestBIndex,
+                  bestBIndex + bestK
+                )
+                .join(" "),
+
+            startIndex:
+              bestBIndex,
+
+            endIndex:
+              bestBIndex + bestK,
+
+            length:
+              bestK
+
+          });
+        }
+
+
+        i +=
+          bestK - 1;
+      }
+    }
+  }
+
+
+  return {
+    matchesA,
+    matchesB
+  };
 }
-const viewReportBtn = document.getElementById("viewReportBtn");
 
-if (viewReportBtn) {
-  viewReportBtn.addEventListener("click", function () {
-    window.location.href = "../Templates/modified.html";
-  });
+
+/* =========================================================
+   HIGHLIGHT MATCHES
+========================================================= */
+
+function highlightMatchesInText(
+  text,
+  matchedPhrases
+) {
+
+  if (
+    !text
+  ) {
+
+    return "";
+  }
+
+
+  if (
+    !matchedPhrases ||
+    matchedPhrases.length === 0
+  ) {
+
+    return formatTextToParagraphs(
+      text
+    );
+  }
+
+
+  /* ---------------------------------------------
+     FIND WORD POSITIONS
+  --------------------------------------------- */
+
+  const words = [];
+
+  const regex =
+    /\S+/g;
+
+
+  let match;
+
+
+  while (
+    (match = regex.exec(text)) !== null
+  ) {
+
+    words.push({
+
+      start:
+        match.index,
+
+      end:
+        match.index +
+        match[0].length
+
+    });
+  }
+
+
+  /* ---------------------------------------------
+     CREATE CHARACTER INTERVALS
+  --------------------------------------------- */
+
+  const highlightIntervals =
+    [];
+
+
+  for (
+    const phraseInfo
+    of matchedPhrases
+  ) {
+
+    if (!phraseInfo) {
+      continue;
+    }
+
+
+    const startWordIdx =
+      Number(
+        phraseInfo.startIndex
+      );
+
+
+    const endWordIdx =
+      Number(
+        phraseInfo.endIndex
+      );
+
+
+    if (
+
+      startWordIdx >= 0 &&
+
+      endWordIdx <=
+        words.length &&
+
+      startWordIdx <
+        endWordIdx
+
+    ) {
+
+      const charStart =
+        words[
+          startWordIdx
+        ].start;
+
+
+      const charEnd =
+        words[
+          endWordIdx - 1
+        ].end;
+
+
+      highlightIntervals.push({
+
+        start:
+          charStart,
+
+        end:
+          charEnd
+
+      });
+    }
+  }
+
+
+  /* ---------------------------------------------
+     MERGE OVERLAPPING INTERVALS
+  --------------------------------------------- */
+
+  highlightIntervals.sort(
+    function (a, b) {
+
+      return a.start -
+        b.start;
+    }
+  );
+
+
+  const mergedIntervals =
+    [];
+
+
+  for (
+    const interval
+    of highlightIntervals
+  ) {
+
+    if (
+      mergedIntervals.length === 0
+    ) {
+
+      mergedIntervals.push({
+        ...interval
+      });
+
+    } else {
+
+      const last =
+        mergedIntervals[
+          mergedIntervals.length - 1
+        ];
+
+
+      if (
+        interval.start <=
+        last.end
+      ) {
+
+        last.end =
+          Math.max(
+            last.end,
+            interval.end
+          );
+
+      } else {
+
+        mergedIntervals.push({
+          ...interval
+        });
+      }
+    }
+  }
+
+
+  /* ---------------------------------------------
+     REBUILD HTML
+  --------------------------------------------- */
+
+  let result = "";
+
+  let currentIndex = 0;
+
+
+  for (
+    const interval
+    of mergedIntervals
+  ) {
+
+    result +=
+      escapeHTML(
+        text.substring(
+          currentIndex,
+          interval.start
+        )
+      );
+
+
+    result +=
+      `<mark class="highlight-match">` +
+      escapeHTML(
+        text.substring(
+          interval.start,
+          interval.end
+        )
+      ) +
+      `</mark>`;
+
+
+    currentIndex =
+      interval.end;
+  }
+
+
+  result +=
+    escapeHTML(
+      text.substring(
+        currentIndex
+      )
+    );
+
+
+  /*
+     Don't escape the <mark> tag.
+     Format paragraphs after creating
+     highlighted content.
+  */
+
+  const paragraphs =
+    result.split(
+      /\n+/
+    );
+
+
+  let html = "";
+
+
+  for (
+    let i = 0;
+    i < paragraphs.length;
+    i++
+  ) {
+
+    if (
+      paragraphs[i].trim()
+    ) {
+
+      html +=
+        "<p>" +
+        paragraphs[i] +
+        "</p>";
+    }
+  }
+
+
+  return html;
 }
 
-// Initial setup
+
+/* =========================================================
+   HTML ESCAPE
+========================================================= */
+
+function escapeHTML(value) {
+
+  return String(value)
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+    .replace(
+      /</g,
+      "&lt;"
+    )
+    .replace(
+      />/g,
+      "&gt;"
+    )
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+    .replace(
+      /'/g,
+      "&#039;"
+    );
+}
+
+
+/* =========================================================
+   INITIAL SETUP
+========================================================= */
+
 setProgressStep(1);
 
 checkButtonState();
+
+
+/*
+   IMPORTANT:
+
+   loadLastSession() is called LAST,
+   after all functions have been created.
+*/
+
+loadLastSession();
+
+
+/* =========================================================
+   DEBUG
+========================================================= */
+
+console.log(
+  "CheckAssign.js loaded successfully."
+);

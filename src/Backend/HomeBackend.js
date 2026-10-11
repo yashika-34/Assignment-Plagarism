@@ -2,12 +2,18 @@ export async function handleLogin(event) {
   event.preventDefault();
   const email = document.getElementById("loginEmail").value.trim().toLowerCase();
   const password = document.getElementById("loginPassword").value;
+
+  // Clear any previous error
+  showFormError("loginError", "");
+
   if (email === "" || password === "") {
-    alert("Please enter email and password.");
+    showFormError("loginError", "Please enter your email and password.");
     return;
   }
-  const response = await fetch("http://localhost:3000/users");
+
+  const response = await fetch("http://localhost:3000/users?email=" + encodeURIComponent(email));
   const users = await response.json();
+
   let foundUser = null;
   for (let i = 0; i < users.length; i++) {
     if (users[i].email === email && users[i].password === password) {
@@ -15,13 +21,15 @@ export async function handleLogin(event) {
       break;
     }
   }
+
   if (foundUser === null) {
-    alert("Invalid email or password.");
+    showFormError("loginError", "Invalid email or password.");
     return;
   }
+
   localStorage.setItem("loggedIn", "true");
   localStorage.setItem("userEmail", email);
-  alert("Login successful!");
+
   await updateNavbar();
   closeAuth();
 }
@@ -35,22 +43,36 @@ export async function handleSignup(event) {
   const email = document.getElementById("signupEmail").value.trim().toLowerCase();
   const password = document.getElementById("signupPassword").value;
   const confirmPassword = document.getElementById("signupConfirm").value;
+
+  // Clear any previous error
+  showFormError("signupError", "");
+
   if (name === "" || email === "" || password === "" || confirmPassword === "") {
-    alert("Please fill all fields.");
+    showFormError("signupError", "Please fill all fields.");
     return;
   }
+
+  // Basic email format check
+  if (email.indexOf("@") === -1 || email.indexOf(".") === -1) {
+    showFormError("signupError", "Please enter a valid email address.");
+    return;
+  }
+
   if (password.length < 6) {
-    alert("Password must contain at least 6 characters.");
+    showFormError("signupError", "Password must contain at least 6 characters.");
     return;
   }
+
   if (password !== confirmPassword) {
-    alert("Passwords do not match.");
+    showFormError("signupError", "Passwords do not match.");
     return;
   }
+
   const response = await fetch("http://localhost:3000/users?email=" + encodeURIComponent(email)); // searching with given email
   const users = await response.json();
+
   if (users.length > 0) {
-    alert("An account with this email already exists.");
+    showFormError("signupError", "An account with this email already exists.");
     return;
   }
 
@@ -59,17 +81,21 @@ export async function handleSignup(event) {
     email: email,
     password: password
   };
+
   await fetch("http://localhost:3000/users", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(newUser)
   });
+
   localStorage.removeItem("loggedIn");
   localStorage.removeItem("userEmail");
-  alert("Account created successfully! Please login.");
+
   document.getElementById("signupForm").reset();
   document.getElementById("signupPanel").classList.remove("active");
   document.getElementById("loginPanel").classList.add("active");
+
+  showFormError("loginInfo", "Account created! Please log in.");
 }
 
 
@@ -91,35 +117,47 @@ export async function resetPassword(event) {
   const email = document.getElementById("resetEmail").value.trim().toLowerCase();
   const newPassword = document.getElementById("resetPassword").value;
   const confirmPassword = document.getElementById("resetConfirm").value;
+
+  // Clear any previous error
+  showFormError("resetError", "");
+
   if (email === "" || newPassword === "" || confirmPassword === "") {
-    alert("Please fill all fields.");
+    showFormError("resetError", "Please fill all fields.");
     return;
   }
+
   if (newPassword.length < 6) {
-    alert("Password must contain at least 6 characters.");
+    showFormError("resetError", "Password must contain at least 6 characters.");
     return;
   }
+
   if (newPassword !== confirmPassword) {
-    alert("Passwords do not match.");
+    showFormError("resetError", "Passwords do not match.");
     return;
   }
+
   const response = await fetch("http://localhost:3000/users?email=" + encodeURIComponent(email));
   const users = await response.json();
+
   if (users.length === 0) {
-    alert("No account found with this email.");
+    showFormError("resetError", "No account found with this email.");
     return;
   }
+
   const user = users[0];
   user.password = newPassword;
+
   await fetch("http://localhost:3000/users/" + user.id, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(user)
   });
-  alert("Password reset successfully! Please login.");
+
   document.getElementById("resetForm").reset();
   document.getElementById("resetPanel").classList.remove("active");
   document.getElementById("loginPanel").classList.add("active");
+
+  showFormError("loginInfo", "Password reset! Please log in.");
 }
 
 
@@ -140,7 +178,6 @@ export function logoutUser() {
   localStorage.removeItem("userEmail");
 
   updateNavbar();
-  alert("You have been logged out.");
 }
 
 
@@ -192,5 +229,19 @@ export function closeAuth() {
     authModal.classList.remove("open");
     authModal.setAttribute("aria-hidden", "true");
     document.body.classList.remove("modal-open");
+  }
+}
+
+
+
+
+// =========================================
+// SHOW / HIDE INLINE FORM ERRORS
+// =========================================
+
+export function showFormError(elementId, message) {
+  const el = document.getElementById(elementId);
+  if (el !== null) {
+    el.textContent = message;
   }
 }

@@ -169,8 +169,27 @@ export function buildthegrams(chunk, n = 4) {
   return grams;
 }
 
+// Store common grams found during similarity calculation
+let lastCommonGrams = new Set();
+
+// Return the common grams found during comparison
+export function getthecommongrams(firstGrams = null, secondGrams = null) {
+  if (firstGrams && secondGrams) {
+    const common = new Set();
+    const secondSet = new Set(secondGrams);
+    for (const gram of firstGrams) {
+      if (secondSet.has(gram)) {
+        common.add(gram);
+      }
+    }
+    return common;
+  }
+  return lastCommonGrams;
+}
+
 // Compare the two files
 export async function applyalgo(fileList, localFallbackChunks = null) {
+  lastCommonGrams = new Set();
   const chunksarr = [];
 
   // Get chunks
@@ -186,16 +205,29 @@ export async function applyalgo(fileList, localFallbackChunks = null) {
     // JSON Server only as fallback
     if (!chunks) {
       try {
-        const response = await fetch(
-          "http://localhost:3000/users/?filename=" +
-            encodeURIComponent(fileList[i].name)
-        );
+        const response = await fetch("http://localhost:3000/filedata");
 
         if (response.ok) {
-          const data = await response.json();
+          const allFileData = await response.json();
 
-          if (data.length > 0 && data[0].chunks) {
-            chunks = data[0].chunks;
+          for (let u = 0; u < allFileData.length; u++) {
+            const details = allFileData[u].filedetails;
+
+            if (Array.isArray(details)) {
+              for (let f = 0; f < details.length; f++) {
+                if (
+                  details[f].filename === fileList[i].name &&
+                  details[f].chunks
+                ) {
+                  chunks = details[f].chunks;
+                  break;
+                }
+              }
+            }
+
+            if (chunks) {
+              break;
+            }
           }
         }
       } catch (error) {
@@ -252,6 +284,7 @@ export async function applyalgo(fileList, localFallbackChunks = null) {
       for (const gram of firstSet) {
         if (secondSet.has(gram)) {
           intersectionCount++;
+          lastCommonGrams.add(gram);
         }
       }
 
@@ -285,3 +318,11 @@ export async function applyalgo(fileList, localFallbackChunks = null) {
 
   return finalSimilarity;
 }
+
+// Re-export SpellChecker functions for easy access
+export {
+  COMMON_TYPOS,
+  detectSpellingMistakes,
+  extractCommonPhrases,
+  highlightTextWithMatchesAndTypos,
+} from "./SpellChecker.js";
