@@ -12,7 +12,7 @@ AssignCheck is a web-based assignment similarity and plagiarism detection system
 
 The landing page introduces AssignCheck and provides access to assignment analysis.
 
-![Home Page](assets/screenshots/home.jpeg)
+![Home Page](../Assets/screenshots/home.jpeg)
 
 ---
 
@@ -84,16 +84,17 @@ Track activity, generated reports, average similarity, and account information.
 
 ## Backend
 
-- JavaScript
-- JSON Server
-- REST API
+- Node.js & Express.js (REST API with 50MB payload support)
+- MongoDB & Mongoose (Database `assigncheck`)
+- SpellChecker & Dual Highlight Engine
+- N-gram Similarity Algorithm
 
 ## Development Tools
 
 - Visual Studio Code
-- Git
-- GitHub
-- Live Server
+- Git & GitHub
+- MongoDB Community Server (port 27017)
+- Local HTTP Server (port 5500)
 
 ---
 
@@ -172,60 +173,45 @@ cd Assignment-Plagiarism
 
 ---
 
-## Step 2 — Install JSON Server
+## Step 2 — Install Dependencies
 
 ```bash
-npm install -g json-server
-```
-
-Verify:
-
-```bash
-json-server --version
+npm install
 ```
 
 ---
 
-## Step 3 — Start Backend
+## Step 3 — Start MongoDB Backend Server
+
+Ensure MongoDB is running locally on port 27017, then execute:
 
 ```bash
-json-server --watch db.json --port 3000
+npm start
 ```
 
-Backend URL:
+*Runs on `http://localhost:3000`. Connects to MongoDB `assigncheck` and auto-migrates seed data.*
 
-```text
-http://localhost:3000
+---
+
+## Step 4 — Start Frontend Server
+
+In another terminal:
+
+```bash
+npx -y http-server . -p 5500 -c-1 --cors
 ```
 
 ---
 
-## Step 4 — Verify Backend
+## Step 5 — Open the Website
 
-Open:
-
-```text
-http://localhost:3000/users
-http://localhost:3000/filedata
-http://localhost:3000/fileresult
-http://localhost:3000/assignments
-```
-
----
-
-## Step 5 — Start Frontend
-
-Open:
+Navigate in your browser to:
 
 ```text
-src/Frontend/Templates/index.html
+http://localhost:5500
 ```
 
-Right click and select:
-
-```text
-Open with Live Server
-```
+*(Redirects automatically to the main application interface at `src/Frontend/Templates/index.html`)*
 
 ---
 
