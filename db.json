@@ -31,20 +31,80 @@
       "textA": "CS-309 — AI & Neural Networks Unit Test\nDepartment of Computer Science\n\nInstructions:\n- Write your answers clearly and avoid plagarism in any assigment.\n- An enviroment with proper testing was created.\n- The algorithm has the best average-case time complexity.\n- What is the worst-case time complexity of Merge Sort?\n- Which sorting algorithm is stable?\n- The space complexity of Heap Sort is O(1).\n- An unexpected error occured during algorithm execution.\n- Be careful not to recieve unverified code from unapproved sources.",
       "textB": "CS-301 — Algorithms & Complexity Mid Semester\nDepartment of Computer Science\n\nInstructions:\n- Write your answers clearly and avoid plagarism in any assigment.\n- Ensure the proper development enviroment is set up.\n- The algorithm has the best average-case time complexity.\n- What is the worst-case time complexity of Merge Sort?\n- Which sorting algorithm is stable?\n- The space complexity of Heap Sort is O(1).\n- Verify all algorithms before final submission.",
       "filefirstmatches": [
-        { "phrase": "Department of Computer Science", "startIndex": 6, "endIndex": 10, "length": 4 },
-        { "phrase": "Write your answers clearly and avoid", "startIndex": 12, "endIndex": 18, "length": 6 },
-        { "phrase": "The algorithm has the best average-case time complexity.", "startIndex": 28, "endIndex": 36, "length": 8 },
-        { "phrase": "What is the worst-case time complexity of Merge Sort?", "startIndex": 37, "endIndex": 47, "length": 9 },
-        { "phrase": "Which sorting algorithm is stable?", "startIndex": 48, "endIndex": 53, "length": 5 },
-        { "phrase": "The space complexity of Heap Sort is O(1).", "startIndex": 54, "endIndex": 63, "length": 9 }
+        {
+          "phrase": "Department of Computer Science",
+          "startIndex": 6,
+          "endIndex": 10,
+          "length": 4
+        },
+        {
+          "phrase": "Write your answers clearly and avoid",
+          "startIndex": 12,
+          "endIndex": 18,
+          "length": 6
+        },
+        {
+          "phrase": "The algorithm has the best average-case time complexity.",
+          "startIndex": 28,
+          "endIndex": 36,
+          "length": 8
+        },
+        {
+          "phrase": "What is the worst-case time complexity of Merge Sort?",
+          "startIndex": 37,
+          "endIndex": 47,
+          "length": 9
+        },
+        {
+          "phrase": "Which sorting algorithm is stable?",
+          "startIndex": 48,
+          "endIndex": 53,
+          "length": 5
+        },
+        {
+          "phrase": "The space complexity of Heap Sort is O(1).",
+          "startIndex": 54,
+          "endIndex": 63,
+          "length": 9
+        }
       ],
       "filesecondmatches": [
-        { "phrase": "Department of Computer Science", "startIndex": 6, "endIndex": 10, "length": 4 },
-        { "phrase": "Write your answers clearly and avoid", "startIndex": 12, "endIndex": 18, "length": 6 },
-        { "phrase": "The algorithm has the best average-case time complexity.", "startIndex": 24, "endIndex": 32, "length": 8 },
-        { "phrase": "What is the worst-case time complexity of Merge Sort?", "startIndex": 33, "endIndex": 43, "length": 9 },
-        { "phrase": "Which sorting algorithm is stable?", "startIndex": 44, "endIndex": 49, "length": 5 },
-        { "phrase": "The space complexity of Heap Sort is O(1).", "startIndex": 50, "endIndex": 59, "length": 9 }
+        {
+          "phrase": "Department of Computer Science",
+          "startIndex": 6,
+          "endIndex": 10,
+          "length": 4
+        },
+        {
+          "phrase": "Write your answers clearly and avoid",
+          "startIndex": 12,
+          "endIndex": 18,
+          "length": 6
+        },
+        {
+          "phrase": "The algorithm has the best average-case time complexity.",
+          "startIndex": 24,
+          "endIndex": 32,
+          "length": 8
+        },
+        {
+          "phrase": "What is the worst-case time complexity of Merge Sort?",
+          "startIndex": 33,
+          "endIndex": 43,
+          "length": 9
+        },
+        {
+          "phrase": "Which sorting algorithm is stable?",
+          "startIndex": 44,
+          "endIndex": 49,
+          "length": 5
+        },
+        {
+          "phrase": "The space complexity of Heap Sort is O(1).",
+          "startIndex": 50,
+          "endIndex": 59,
+          "length": 9
+        }
       ]
     },
     {
@@ -64,21 +124,138 @@
       "textA": "CS-309 — AI & Neural Networks Unit Test\nDepartment of Computer Science\n\nInstructions:\n- Write your answers clearly and avoid plagarism in any assigment.\n- An enviroment with proper testing was created.\n- The algorithm has the best average-case time complexity.\n- What is the worst-case time complexity of Merge Sort?\n- Which sorting algorithm is stable?\n- The space complexity of Heap Sort is O(1).\n- An unexpected error occured during algorithm execution.\n- Be careful not to recieve unverified code from unapproved sources.",
       "textB": "CS-301 — Algorithms & Complexity Mid Semester\nDepartment of Computer Science\n\nInstructions:\n- Write your answers clearly and avoid plagarism in any assigment.\n- Ensure the proper development enviroment is set up.\n- The algorithm has the best average-case time complexity.\n- What is the worst-case time complexity of Merge Sort?\n- Which sorting algorithm is stable?\n- The space complexity of Heap Sort is O(1).\n- Verify all algorithms before final submission.",
       "filefirstmatches": [
-        { "phrase": "Department of Computer Science", "startIndex": 6, "endIndex": 10, "length": 4 },
-        { "phrase": "Write your answers clearly and avoid", "startIndex": 12, "endIndex": 18, "length": 6 },
-        { "phrase": "The algorithm has the best average-case time complexity.", "startIndex": 28, "endIndex": 36, "length": 8 },
-        { "phrase": "What is the worst-case time complexity of Merge Sort?", "startIndex": 37, "endIndex": 47, "length": 9 },
-        { "phrase": "Which sorting algorithm is stable?", "startIndex": 48, "endIndex": 53, "length": 5 },
-        { "phrase": "The space complexity of Heap Sort is O(1).", "startIndex": 54, "endIndex": 63, "length": 9 }
+        {
+          "phrase": "Department of Computer Science",
+          "startIndex": 6,
+          "endIndex": 10,
+          "length": 4
+        },
+        {
+          "phrase": "Write your answers clearly and avoid",
+          "startIndex": 12,
+          "endIndex": 18,
+          "length": 6
+        },
+        {
+          "phrase": "The algorithm has the best average-case time complexity.",
+          "startIndex": 28,
+          "endIndex": 36,
+          "length": 8
+        },
+        {
+          "phrase": "What is the worst-case time complexity of Merge Sort?",
+          "startIndex": 37,
+          "endIndex": 47,
+          "length": 9
+        },
+        {
+          "phrase": "Which sorting algorithm is stable?",
+          "startIndex": 48,
+          "endIndex": 53,
+          "length": 5
+        },
+        {
+          "phrase": "The space complexity of Heap Sort is O(1).",
+          "startIndex": 54,
+          "endIndex": 63,
+          "length": 9
+        }
       ],
       "filesecondmatches": [
-        { "phrase": "Department of Computer Science", "startIndex": 6, "endIndex": 10, "length": 4 },
-        { "phrase": "Write your answers clearly and avoid", "startIndex": 12, "endIndex": 18, "length": 6 },
-        { "phrase": "The algorithm has the best average-case time complexity.", "startIndex": 24, "endIndex": 32, "length": 8 },
-        { "phrase": "What is the worst-case time complexity of Merge Sort?", "startIndex": 33, "endIndex": 43, "length": 9 },
-        { "phrase": "Which sorting algorithm is stable?", "startIndex": 44, "endIndex": 49, "length": 5 },
-        { "phrase": "The space complexity of Heap Sort is O(1).", "startIndex": 50, "endIndex": 59, "length": 9 }
+        {
+          "phrase": "Department of Computer Science",
+          "startIndex": 6,
+          "endIndex": 10,
+          "length": 4
+        },
+        {
+          "phrase": "Write your answers clearly and avoid",
+          "startIndex": 12,
+          "endIndex": 18,
+          "length": 6
+        },
+        {
+          "phrase": "The algorithm has the best average-case time complexity.",
+          "startIndex": 24,
+          "endIndex": 32,
+          "length": 8
+        },
+        {
+          "phrase": "What is the worst-case time complexity of Merge Sort?",
+          "startIndex": 33,
+          "endIndex": 43,
+          "length": 9
+        },
+        {
+          "phrase": "Which sorting algorithm is stable?",
+          "startIndex": 44,
+          "endIndex": 49,
+          "length": 5
+        },
+        {
+          "phrase": "The space complexity of Heap Sort is O(1).",
+          "startIndex": 50,
+          "endIndex": 59,
+          "length": 9
+        }
       ]
+    },
+    {
+      "email": "yashika3073.beai24@chitkara.edu.in",
+      "files": [
+        "2410993073_yashikagarg_dnn.pdf",
+        "2410993073_yashikagarg_dnn.pdf"
+      ],
+      "type": "student",
+      "similarity": 100,
+      "matchingSections": 3,
+      "differentSections": 1,
+      "matchingPhrases": 3,
+      "spellingMistakes": 0,
+      "date": "2026-10-11T09:21:52.261Z",
+      "textA": "S ep 3 , 2 02 6  y a shi ka ga rg  Neu ral Netw orks and Deep Learning  an online course authorized by DeepLearning.AI and offered through Coursera has successfully completed  Andrew Ng, Founder, DeepLearning.AI & Co-founder, Coursera  V er if y at:  h ttp s://co u r ser a.o r g /v er i f y /O V 66B4M81Z4I  C ou r ser a h as con fir med th e id en tity of th is in d iv id u al an d th eir p ar ticip ation in th e cou r se.  This certi\u0000cate attests to the learner’s completion of an online course / project delivered via Coursera. It does not constitute formal enrollment at any university or entity and does not itself grant academic credit, grades, or a degree. Institutions or organizations may, at their discretion, recognize this learning toward their own programs or credentials.",
+      "textB": "S ep 3 , 2 02 6  y a shi ka ga rg  Neu ral Netw orks and Deep Learning  an online course authorized by DeepLearning.AI and offered through Coursera has successfully completed  Andrew Ng, Founder, DeepLearning.AI & Co-founder, Coursera  V er if y at:  h ttp s://co u r ser a.o r g /v er i f y /O V 66B4M81Z4I  C ou r ser a h as con fir med th e id en tity of th is in d iv id u al an d th eir p ar ticip ation in th e cou r se.  This certi\u0000cate attests to the learner’s completion of an online course / project delivered via Coursera. It does not constitute formal enrollment at any university or entity and does not itself grant academic credit, grades, or a degree. Institutions or organizations may, at their discretion, recognize this learning toward their own programs or credentials.",
+      "filefirstmatches": [
+        {
+          "phrase": "2 02 6 y a shi ka ga rg Neu ral Netw orks and Deep Learning an online course authorized by DeepLearning.AI and offered through Coursera has successfully completed Andrew Ng, Founder, DeepLearning.AI",
+          "startIndex": 4,
+          "endIndex": 37,
+          "length": 33
+        },
+        {
+          "phrase": "Co-founder, Coursera V er if y at: h ttp s://co u r ser a.o r g /v er i f y /O V 66B4M81Z4I C ou r ser a h as con fir med th e id en tity of th is in d iv id u al an d th eir p ar ticip ation in th e cou r se. This certi\u0000cate attests to the learner’s completion of an online course",
+          "startIndex": 38,
+          "endIndex": 111,
+          "length": 73
+        },
+        {
+          "phrase": "project delivered via Coursera. It does not constitute formal enrollment at any university or entity and does not itself grant academic credit, grades, or a degree. Institutions or organizations may, at their discretion, recognize this learning toward their own programs or credentials.",
+          "startIndex": 112,
+          "endIndex": 154,
+          "length": 42
+        }
+      ],
+      "filesecondmatches": [
+        {
+          "phrase": "2 02 6 y a shi ka ga rg Neu ral Netw orks and Deep Learning an online course authorized by DeepLearning.AI and offered through Coursera has successfully completed Andrew Ng, Founder, DeepLearning.AI",
+          "startIndex": 4,
+          "endIndex": 37,
+          "length": 33
+        },
+        {
+          "phrase": "Co-founder, Coursera V er if y at: h ttp s://co u r ser a.o r g /v er i f y /O V 66B4M81Z4I C ou r ser a h as con fir med th e id en tity of th is in d iv id u al an d th eir p ar ticip ation in th e cou r se. This certi\u0000cate attests to the learner’s completion of an online course",
+          "startIndex": 38,
+          "endIndex": 111,
+          "length": 73
+        },
+        {
+          "phrase": "project delivered via Coursera. It does not constitute formal enrollment at any university or entity and does not itself grant academic credit, grades, or a degree. Institutions or organizations may, at their discretion, recognize this learning toward their own programs or credentials.",
+          "startIndex": 112,
+          "endIndex": 154,
+          "length": 42
+        }
+      ],
+      "id": "3ZSXNcrFhfo"
     }
   ],
   "filedata": [
@@ -1863,6 +2040,338 @@
             }
           ],
           "results": []
+        },
+        {
+          "filename": "2410993073_yashikagarg_dnn.pdf",
+          "filesize": 370757,
+          "chunks": [
+            {
+              "chunkIndex": 0,
+              "text": "S ep 3 , 2 02 6 y a shi ka ga rg Neu ral Netw orks and Deep Learning an online course authorized by DeepLearning.AI and offered through Coursera has successfully completed Andrew Ng, Founder, DeepLearning.AI & Co-founder, Coursera V er if y at: h ttp s://co u r ser a.o r g /v er i f y /O V 66B4M81Z4I C ou r ser a h as con fir med th e id en tity of th is in d iv id u al an d th eir p ar ticip ation in th e cou r se.",
+              "wordCount": 100,
+              "grams": [
+                "s ep 3 2",
+                "ep 3 2 02",
+                "3 2 02 6",
+                "2 02 6 y",
+                "02 6 y a",
+                "6 y a shi",
+                "y a shi ka",
+                "a shi ka ga",
+                "shi ka ga rg",
+                "ka ga rg neu",
+                "ga rg neu ral",
+                "rg neu ral netw",
+                "neu ral netw orks",
+                "ral netw orks and",
+                "netw orks and deep",
+                "orks and deep learning",
+                "and deep learning an",
+                "deep learning an online",
+                "learning an online course",
+                "an online course authorized",
+                "online course authorized by",
+                "course authorized by deeplearningai",
+                "authorized by deeplearningai and",
+                "by deeplearningai and offered",
+                "deeplearningai and offered through",
+                "and offered through coursera",
+                "offered through coursera has",
+                "through coursera has successfully",
+                "coursera has successfully completed",
+                "has successfully completed andrew",
+                "successfully completed andrew ng",
+                "completed andrew ng founder",
+                "andrew ng founder deeplearningai",
+                "ng founder deeplearningai cofounder",
+                "founder deeplearningai cofounder coursera",
+                "deeplearningai cofounder coursera v",
+                "cofounder coursera v er",
+                "coursera v er if",
+                "v er if y",
+                "er if y at",
+                "if y at h",
+                "y at h ttp",
+                "at h ttp sco",
+                "h ttp sco u",
+                "ttp sco u r",
+                "sco u r ser",
+                "u r ser ao",
+                "r ser ao r",
+                "ser ao r g",
+                "ao r g v",
+                "r g v er",
+                "g v er i",
+                "v er i f",
+                "er i f y",
+                "i f y o",
+                "f y o v",
+                "y o v 66b4m81z4i",
+                "o v 66b4m81z4i c",
+                "v 66b4m81z4i c ou",
+                "66b4m81z4i c ou r",
+                "c ou r ser",
+                "ou r ser a",
+                "r ser a h",
+                "ser a h as",
+                "a h as con",
+                "h as con fir",
+                "as con fir med",
+                "con fir med th",
+                "fir med th e",
+                "med th e id",
+                "th e id en",
+                "e id en tity",
+                "id en tity of",
+                "en tity of th",
+                "tity of th is",
+                "of th is in",
+                "th is in d",
+                "is in d iv",
+                "in d iv id",
+                "d iv id u",
+                "iv id u al",
+                "id u al an",
+                "u al an d",
+                "al an d th",
+                "an d th eir",
+                "d th eir p",
+                "th eir p ar",
+                "eir p ar ticip",
+                "p ar ticip ation",
+                "ar ticip ation in",
+                "ticip ation in th",
+                "ation in th e",
+                "in th e cou",
+                "th e cou r",
+                "e cou r se"
+              ]
+            },
+            {
+              "chunkIndex": 1,
+              "text": "This certi\u0000cate attests to the learner’s completion of an online course / project delivered via Coursera. It does not constitute formal enrollment at any university or entity and does not itself grant academic credit, grades, or a degree. Institutions or organizations may, at their discretion, recognize this learning toward their own programs or credentials.",
+              "wordCount": 54,
+              "grams": [
+                "this certicate attests to",
+                "certicate attests to the",
+                "attests to the learners",
+                "to the learners completion",
+                "the learners completion of",
+                "learners completion of an",
+                "completion of an online",
+                "of an online course",
+                "an online course project",
+                "online course project delivered",
+                "course project delivered via",
+                "project delivered via coursera",
+                "delivered via coursera it",
+                "via coursera it does",
+                "coursera it does not",
+                "it does not constitute",
+                "does not constitute formal",
+                "not constitute formal enrollment",
+                "constitute formal enrollment at",
+                "formal enrollment at any",
+                "enrollment at any university",
+                "at any university or",
+                "any university or entity",
+                "university or entity and",
+                "or entity and does",
+                "entity and does not",
+                "and does not itself",
+                "does not itself grant",
+                "not itself grant academic",
+                "itself grant academic credit",
+                "grant academic credit grades",
+                "academic credit grades or",
+                "credit grades or a",
+                "grades or a degree",
+                "or a degree institutions",
+                "a degree institutions or",
+                "degree institutions or organizations",
+                "institutions or organizations may",
+                "or organizations may at",
+                "organizations may at their",
+                "may at their discretion",
+                "at their discretion recognize",
+                "their discretion recognize this",
+                "discretion recognize this learning",
+                "recognize this learning toward",
+                "this learning toward their",
+                "learning toward their own",
+                "toward their own programs",
+                "their own programs or",
+                "own programs or credentials"
+              ]
+            }
+          ],
+          "results": []
+        },
+        {
+          "filename": "2410993073_yashikagarg_dnn.pdf",
+          "filesize": 370757,
+          "chunks": [
+            {
+              "chunkIndex": 0,
+              "text": "S ep 3 , 2 02 6 y a shi ka ga rg Neu ral Netw orks and Deep Learning an online course authorized by DeepLearning.AI and offered through Coursera has successfully completed Andrew Ng, Founder, DeepLearning.AI & Co-founder, Coursera V er if y at: h ttp s://co u r ser a.o r g /v er i f y /O V 66B4M81Z4I C ou r ser a h as con fir med th e id en tity of th is in d iv id u al an d th eir p ar ticip ation in th e cou r se.",
+              "wordCount": 100,
+              "grams": [
+                "s ep 3 2",
+                "ep 3 2 02",
+                "3 2 02 6",
+                "2 02 6 y",
+                "02 6 y a",
+                "6 y a shi",
+                "y a shi ka",
+                "a shi ka ga",
+                "shi ka ga rg",
+                "ka ga rg neu",
+                "ga rg neu ral",
+                "rg neu ral netw",
+                "neu ral netw orks",
+                "ral netw orks and",
+                "netw orks and deep",
+                "orks and deep learning",
+                "and deep learning an",
+                "deep learning an online",
+                "learning an online course",
+                "an online course authorized",
+                "online course authorized by",
+                "course authorized by deeplearningai",
+                "authorized by deeplearningai and",
+                "by deeplearningai and offered",
+                "deeplearningai and offered through",
+                "and offered through coursera",
+                "offered through coursera has",
+                "through coursera has successfully",
+                "coursera has successfully completed",
+                "has successfully completed andrew",
+                "successfully completed andrew ng",
+                "completed andrew ng founder",
+                "andrew ng founder deeplearningai",
+                "ng founder deeplearningai cofounder",
+                "founder deeplearningai cofounder coursera",
+                "deeplearningai cofounder coursera v",
+                "cofounder coursera v er",
+                "coursera v er if",
+                "v er if y",
+                "er if y at",
+                "if y at h",
+                "y at h ttp",
+                "at h ttp sco",
+                "h ttp sco u",
+                "ttp sco u r",
+                "sco u r ser",
+                "u r ser ao",
+                "r ser ao r",
+                "ser ao r g",
+                "ao r g v",
+                "r g v er",
+                "g v er i",
+                "v er i f",
+                "er i f y",
+                "i f y o",
+                "f y o v",
+                "y o v 66b4m81z4i",
+                "o v 66b4m81z4i c",
+                "v 66b4m81z4i c ou",
+                "66b4m81z4i c ou r",
+                "c ou r ser",
+                "ou r ser a",
+                "r ser a h",
+                "ser a h as",
+                "a h as con",
+                "h as con fir",
+                "as con fir med",
+                "con fir med th",
+                "fir med th e",
+                "med th e id",
+                "th e id en",
+                "e id en tity",
+                "id en tity of",
+                "en tity of th",
+                "tity of th is",
+                "of th is in",
+                "th is in d",
+                "is in d iv",
+                "in d iv id",
+                "d iv id u",
+                "iv id u al",
+                "id u al an",
+                "u al an d",
+                "al an d th",
+                "an d th eir",
+                "d th eir p",
+                "th eir p ar",
+                "eir p ar ticip",
+                "p ar ticip ation",
+                "ar ticip ation in",
+                "ticip ation in th",
+                "ation in th e",
+                "in th e cou",
+                "th e cou r",
+                "e cou r se"
+              ]
+            },
+            {
+              "chunkIndex": 1,
+              "text": "This certi\u0000cate attests to the learner’s completion of an online course / project delivered via Coursera. It does not constitute formal enrollment at any university or entity and does not itself grant academic credit, grades, or a degree. Institutions or organizations may, at their discretion, recognize this learning toward their own programs or credentials.",
+              "wordCount": 54,
+              "grams": [
+                "this certicate attests to",
+                "certicate attests to the",
+                "attests to the learners",
+                "to the learners completion",
+                "the learners completion of",
+                "learners completion of an",
+                "completion of an online",
+                "of an online course",
+                "an online course project",
+                "online course project delivered",
+                "course project delivered via",
+                "project delivered via coursera",
+                "delivered via coursera it",
+                "via coursera it does",
+                "coursera it does not",
+                "it does not constitute",
+                "does not constitute formal",
+                "not constitute formal enrollment",
+                "constitute formal enrollment at",
+                "formal enrollment at any",
+                "enrollment at any university",
+                "at any university or",
+                "any university or entity",
+                "university or entity and",
+                "or entity and does",
+                "entity and does not",
+                "and does not itself",
+                "does not itself grant",
+                "not itself grant academic",
+                "itself grant academic credit",
+                "grant academic credit grades",
+                "academic credit grades or",
+                "credit grades or a",
+                "grades or a degree",
+                "or a degree institutions",
+                "a degree institutions or",
+                "degree institutions or organizations",
+                "institutions or organizations may",
+                "or organizations may at",
+                "organizations may at their",
+                "may at their discretion",
+                "at their discretion recognize",
+                "their discretion recognize this",
+                "discretion recognize this learning",
+                "recognize this learning toward",
+                "this learning toward their",
+                "learning toward their own",
+                "toward their own programs",
+                "their own programs or",
+                "own programs or credentials"
+              ]
+            }
+          ],
+          "results": []
         }
       ],
       "id": "-WgZPLx1umY"
@@ -2360,6 +2869,102 @@
           "textB": "CS-301 — Algorithms & Complexity\nMid Semester\nGenerated: 9/23/2026, 8:58:49 PM\n\n**University of Excellence**  \n**Department of Computer Science**  \n**Mid Semester Examination - Fall 2026**  \n\n---\n\n# Course: **CS-301 — Algorithms & Complexity**  \n**Topic:** Sorting  \n**Total Marks:** 100  \n**Duration:** 3 hours  \n**Number of Questions:** 10  \n\n---\n\n## Instructions:  \n- Answer all questions.  \n- Write your answers clearly and concisely.  \n- Use appropriate algorithms and justify your answers where required.  \n- Marks are indicated against each question.  \n- Calculators and electronic devices are not allowed.  \n- Start each section on a new page.  \n\n---\n\n# Section A: Multiple Choice Questions (20 marks)  \n*Answer all 20 questions. Each question carries 1 mark.*\n\n1. Which of the following sorting algorithms has the best average-case time complexity?  \n   a) Bubble Sort  \n   b) Quick Sort  \n   c) Selection Sort  \n   d) Insertion Sort  \n\n2. What is the worst-case time complexity of Merge Sort?  \n   a) O(n)  \n   b) O(n log n)  \n   c) O(n²)  \n   d) O(log n)  \n\n3. Which sorting algorithm is stable?  \n   a) Quick Sort  \n   b) Heap Sort  \n   c) Merge Sort  \n   d) Selection Sort  \n\n4. In Quick Sort, the choice of pivot affects:  \n   a) Stability  \n   b) Time complexity  \n   c) Space complexity  \n   d) None of the above  \n\n5. Which sorting algorithm is most suitable for nearly sorted data?  \n   a) Bubble Sort  \n   b) Insertion Sort  \n   c) Heap Sort  \n   d) Merge Sort  \n\n6. Counting Sort is efficient when:  \n   a) The range of input data is small  \n   b) The input data is large  \n   c) The data is floating point numbers  \n   d) The data is already sorted  \n\n7. Which sorting algorithm uses a binary heap data structure?  \n   a) Quick Sort  \n   b) Heap Sort  \n   c) Merge Sort  \n   d) Radix Sort  \n\n8. Radix Sort is an example of:  \n   a) Comparison-based sorting  \n   b) Non-comparison-based sorting  \n   c) Divide and conquer sorting  \n   d) In-place sorting  \n\n9. The space complexity of Merge Sort is:  \n   a) O(1)  \n   b) O(log n)  \n   c) O(n)  \n   d) O(n log n)  \n\n10. Which of the following is NOT a divide and conquer sorting algorithm?  \n    a) Quick Sort  \n    b) Merge Sort  \n    c) Heap Sort  \n    d) None of the above  \n\n11. The best-case time complexity of Bubble Sort is:  \n    a) O(n²)  \n    b) O(n log n)  \n    c) O(n)  \n    d) O(log n)  \n\n12. Which sorting algorithm repeatedly selects the minimum element and places it at the beginning?  \n    a) Selection Sort  \n    b) Insertion Sort  \n    c) Bubble Sort  \n    d) Quick Sort  \n\n13. Which sorting algorithm is NOT stable?  \n    a) Bubble Sort  \n    b) Merge Sort  \n    c) Quick Sort  \n    d) Insertion Sort  \n\n14. What is the primary advantage of using Bucket Sort?  \n    a) Works well for uniformly distributed data  \n    b) Uses less memory  \n    c) Is comparison-based  \n    d) None of the above  \n\n15. Which sorting algorithm is best suited for sorting linked lists?  \n    a) Quick Sort  \n    b) Merge Sort  \n    c) Heap Sort  \n    d) Bubble Sort  \n\n16. The average-case time complexity of Quick Sort is:  \n    a) O(n²)  \n    b) O(n log n)  \n    c) O(n)  \n    d) O(log n)  \n\n17. Which sorting algorithm sorts by repeatedly swapping adjacent elements?  \n    a) Bubble Sort  \n    b) Selection Sort  \n    c) Quick Sort  \n    d) Merge Sort  \n\n18. Which sorting algorithm can be implemented without recursion?  \n    a) Merge Sort  \n    b) Quick Sort  \n    c) Heap Sort  \n    d) All of the above  \n\n19. The time complexity of Counting Sort is:  \n    a) O(n + k) where k is the range of input  \n    b) O(n log n)  \n    c) O(n²)  \n    d) O(k log n)  \n\n20. Which sorting algorithm is used in the C++ STL sort function?  \n    a) Quick Sort  \n    b) Heap Sort  \n    c) Intro Sort  \n    d) Merge Sort  \n\n---\n\n# Section B: Short Answer Questions (30 marks)  \n*Answer all 6 questions. Each question carries 5 marks.*\n\n1. Explain the concept of stability in sorting algorithms with an example.  \n2. Describe the partition process in Quick Sort with a brief example.  \n3. Compare and contrast Merge Sort and Heap Sort in terms of time and space complexity.  \n4. What is the significance of the pivot selection in Quick Sort? Discuss two common strategies.  \n5. Explain how Counting Sort works and mention its limitations.  \n6. Describe the working principle of Radix Sort and its time complexity.\n\n---\n\n# Section C: Long Answer / Problems (50 marks)  \n*Answer all 4 questions. Marks indicated.*\n\n1. (15 marks) Given the array [34, 7, 23, 32, 5, 62],  \n   a) Sort the array using Quick Sort and show each step of partitioning.  \n   b) Analyze the time complexity of Quick Sort in the best, average, and worst cases.\n\n2. (15 marks) Write the pseudocode for Merge Sort. Using the array [12, 11, 13, 5, 6, 7], demonstrate the merge process step-by-step.\n\n3. (10 marks) Explain Heap Sort algorithm. Build a max heap from the array [4, 10, 3, 5, 1] and show the steps to sort it.\n\n4. (10 marks) Discuss the advantages and disadvantages of non-comparison-based sorting algorithms. Provide examples where these algorithms outperform comparison-based sorts.\n\n---\n\n> [!NOTE]  \n> - Total marks: 100  \n> - Duration: 3 hours  \n> - Ensure clarity and neatness in your answers.  \n> - Manage your time wisely: approximately 1.5 minutes per mark is recommended.  \n\nGood luck!",
           "chunkCountA": 10,
           "chunkCountB": 9
+        },
+        {
+          "filenames": [
+            "2410993073_yashikagarg_dnn.pdf",
+            "2410993073_yashikagarg_dnn.pdf"
+          ],
+          "filefirstmatches": [
+            {
+              "phrase": "2 02 6 y a shi ka ga rg Neu ral Netw orks and Deep Learning an online course authorized by DeepLearning.AI and offered through Coursera has successfully completed Andrew Ng, Founder, DeepLearning.AI",
+              "startIndex": 4,
+              "endIndex": 37,
+              "length": 33
+            },
+            {
+              "phrase": "Co-founder, Coursera V er if y at: h ttp s://co u r ser a.o r g /v er i f y /O V 66B4M81Z4I C ou r ser a h as con fir med th e id en tity of th is in d iv id u al an d th eir p ar ticip ation in th e cou r se. This certi\u0000cate attests to the learner’s completion of an online course",
+              "startIndex": 38,
+              "endIndex": 111,
+              "length": 73
+            },
+            {
+              "phrase": "project delivered via Coursera. It does not constitute formal enrollment at any university or entity and does not itself grant academic credit, grades, or a degree. Institutions or organizations may, at their discretion, recognize this learning toward their own programs or credentials.",
+              "startIndex": 112,
+              "endIndex": 154,
+              "length": 42
+            }
+          ],
+          "filesecondmatches": [
+            {
+              "phrase": "2 02 6 y a shi ka ga rg Neu ral Netw orks and Deep Learning an online course authorized by DeepLearning.AI and offered through Coursera has successfully completed Andrew Ng, Founder, DeepLearning.AI",
+              "startIndex": 4,
+              "endIndex": 37,
+              "length": 33
+            },
+            {
+              "phrase": "Co-founder, Coursera V er if y at: h ttp s://co u r ser a.o r g /v er i f y /O V 66B4M81Z4I C ou r ser a h as con fir med th e id en tity of th is in d iv id u al an d th eir p ar ticip ation in th e cou r se. This certi\u0000cate attests to the learner’s completion of an online course",
+              "startIndex": 38,
+              "endIndex": 111,
+              "length": 73
+            },
+            {
+              "phrase": "project delivered via Coursera. It does not constitute formal enrollment at any university or entity and does not itself grant academic credit, grades, or a degree. Institutions or organizations may, at their discretion, recognize this learning toward their own programs or credentials.",
+              "startIndex": 112,
+              "endIndex": 154,
+              "length": 42
+            }
+          ],
+          "similarwords": 145,
+          "roundedscore": 100,
+          "textA": "S ep 3 , 2 02 6  y a shi ka ga rg  Neu ral Netw orks and Deep Learning  an online course authorized by DeepLearning.AI and offered through Coursera has successfully completed  Andrew Ng, Founder, DeepLearning.AI & Co-founder, Coursera  V er if y at:  h ttp s://co u r ser a.o r g /v er i f y /O V 66B4M81Z4I  C ou r ser a h as con fir med th e id en tity of th is in d iv id u al an d th eir p ar ticip ation in th e cou r se.  This certi\u0000cate attests to the learner’s completion of an online course / project delivered via Coursera. It does not constitute formal enrollment at any university or entity and does not itself grant academic credit, grades, or a degree. Institutions or organizations may, at their discretion, recognize this learning toward their own programs or credentials.",
+          "textB": "S ep 3 , 2 02 6  y a shi ka ga rg  Neu ral Netw orks and Deep Learning  an online course authorized by DeepLearning.AI and offered through Coursera has successfully completed  Andrew Ng, Founder, DeepLearning.AI & Co-founder, Coursera  V er if y at:  h ttp s://co u r ser a.o r g /v er i f y /O V 66B4M81Z4I  C ou r ser a h as con fir med th e id en tity of th is in d iv id u al an d th eir p ar ticip ation in th e cou r se.  This certi\u0000cate attests to the learner’s completion of an online course / project delivered via Coursera. It does not constitute formal enrollment at any university or entity and does not itself grant academic credit, grades, or a degree. Institutions or organizations may, at their discretion, recognize this learning toward their own programs or credentials.",
+          "chunkCountA": 2,
+          "chunkCountB": 2,
+          "commonPhrases": [
+            {
+              "phrase": "Co-founder, Coursera V er if y at: h ttp s://co u r ser a.o r g /v er i f y /O V 66B4M81Z4I C ou r ser a h as con fir med th e id en tity of th is in d iv id u al an d th eir p ar ticip ation in th e cou r se. This certi\u0000cate attests to the learner’s completion of an online course",
+              "wordCount": 73,
+              "count": 1,
+              "occurrences": [
+                {
+                  "phrase": "Co-founder, Coursera V er if y at: h ttp s://co u r ser a.o r g /v er i f y /O V 66B4M81Z4I C ou r ser a h as con fir med th e id en tity of th is in d iv id u al an d th eir p ar ticip ation in th e cou r se. This certi\u0000cate attests to the learner’s completion of an online course",
+                  "startIndex": 38,
+                  "endIndex": 111,
+                  "length": 73
+                }
+              ]
+            },
+            {
+              "phrase": "project delivered via Coursera. It does not constitute formal enrollment at any university or entity and does not itself grant academic credit, grades, or a degree. Institutions or organizations may, at their discretion, recognize this learning toward their own programs or credentials.",
+              "wordCount": 42,
+              "count": 1,
+              "occurrences": [
+                {
+                  "phrase": "project delivered via Coursera. It does not constitute formal enrollment at any university or entity and does not itself grant academic credit, grades, or a degree. Institutions or organizations may, at their discretion, recognize this learning toward their own programs or credentials.",
+                  "startIndex": 112,
+                  "endIndex": 154,
+                  "length": 42
+                }
+              ]
+            },
+            {
+              "phrase": "2 02 6 y a shi ka ga rg Neu ral Netw orks and Deep Learning an online course authorized by DeepLearning.AI and offered through Coursera has successfully completed Andrew Ng, Founder, DeepLearning.AI",
+              "wordCount": 33,
+              "count": 1,
+              "occurrences": [
+                {
+                  "phrase": "2 02 6 y a shi ka ga rg Neu ral Netw orks and Deep Learning an online course authorized by DeepLearning.AI and offered through Coursera has successfully completed Andrew Ng, Founder, DeepLearning.AI",
+                  "startIndex": 4,
+                  "endIndex": 37,
+                  "length": 33
+                }
+              ]
+            }
+          ],
+          "spellingMistakesA": [],
+          "spellingMistakesB": [],
+          "date": "2026-10-11T09:21:52.243Z"
         }
       ],
       "id": "X6hXbtON-ng"
