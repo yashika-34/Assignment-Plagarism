@@ -2269,13 +2269,15 @@ async function displayResults(
 
       // Also save report record to /reports for history and detailed report
       try {
+        const dynamicDiffSections = Math.max(0, ((chunkCountA || 0) + (chunkCountB || 0)) - (Array.isArray(result.commonPhrases) ? result.commonPhrases.length : 0));
+
         const reportEntry = {
           email: email,
           files: [fileA.name, fileB.name],
           type: currentMode,
           similarity: roundedScore,
           matchingSections: Array.isArray(result.commonPhrases) ? result.commonPhrases.length : 0,
-          differentSections: Math.max(1, 10 - Math.ceil(roundedScore / 10)),
+          differentSections: dynamicDiffSections,
           matchingPhrases: Array.isArray(result.commonPhrases) ? result.commonPhrases.length : 0,
           spellingMistakes: ((result.spellingMistakesA || []).length + (result.spellingMistakesB || []).length),
           date: new Date().toISOString(),
@@ -2597,37 +2599,47 @@ function renderUI(result) {
   }
 
 
-  let different = 0;
+  const commonPhrases =
+    Array.isArray(result.commonPhrases)
+      ? result.commonPhrases
+      : [];
 
+  const commonPhrasesCount =
+    commonPhrases.length;
 
-  if (roundedScore < 100) {
+  const wordsCountA =
+    (result.textA || "").trim().split(/\s+/).filter(Boolean).length;
 
-    different =
-      10 -
-      Math.ceil(
-        roundedScore / 10
-      );
+  const wordsCountB =
+    (result.textB || "").trim().split(/\s+/).filter(Boolean).length;
 
+  const typosCountA =
+    Array.isArray(result.spellingMistakesA)
+      ? result.spellingMistakesA.length
+      : 0;
 
-    if (different < 1) {
-      different = 1;
-    }
-  }
+  const typosCountB =
+    Array.isArray(result.spellingMistakesB)
+      ? result.spellingMistakesB.length
+      : 0;
 
+  const diffSections =
+    Math.max(
+      0,
+      ((result.chunkCountA || 0) + (result.chunkCountB || 0)) - commonPhrasesCount
+    );
 
   if (mDifferent) {
 
     mDifferent.textContent =
-      different;
+      diffSections;
   }
 
 
   if (mPhrases) {
 
     mPhrases.textContent =
-      Math.round(
-        roundedScore * 0.5
-      );
+      commonPhrasesCount;
   }
 
 
@@ -2645,17 +2657,11 @@ function renderUI(result) {
 
     diffList.innerHTML =
 
-      "<li>File 1 has <b>" +
-      (result.chunkCountA || 0) +
-      " chunks</b> (100 words per chunk).</li>" +
+      "<li><b>" + fileAName + ":</b> " + wordsCountA + " words across " + (result.chunkCountA || 0) + " analysis chunks (" + typosCountA + " typos).</li>" +
 
-      "<li>File 2 has <b>" +
-      (result.chunkCountB || 0) +
-      " chunks</b> (100 words per chunk).</li>" +
+      "<li><b>" + fileBName + ":</b> " + wordsCountB + " words across " + (result.chunkCountB || 0) + " analysis chunks (" + typosCountB + " typos).</li>" +
 
-      "<li>Calculated Jaccard similarity across all 4-gram sets: <b>" +
-      roundedScore +
-      "%</b>.</li>";
+      "<li>Identified <b>" + diffSections + " non-overlapping sections</b> between the compared files.</li>";
   }
 
 
@@ -2671,19 +2677,21 @@ function renderUI(result) {
 
   if (matchList) {
 
+    let topPhraseItem = "No identical multi-word phrases detected.";
+
+    if (commonPhrasesCount > 0 && commonPhrases[0] && commonPhrases[0].phrase) {
+      const phraseText = commonPhrases[0].phrase;
+      const displayPhrase = phraseText.length > 55 ? phraseText.substring(0, 55) + "..." : phraseText;
+      topPhraseItem = "Top match: <i>\"" + displayPhrase + "\"</i> (" + (commonPhrases[0].wordCount || 4) + " words)";
+    }
+
     matchList.innerHTML =
 
-      "<li>Processed using sliding 4-gram overlapping windows.</li>" +
+      "<li>Identified <b>" + commonPhrasesCount + " common multi-word phrases</b> shared between files.</li>" +
 
-      "<li>" +
+      "<li>Detected <b>" + (result.similarwords || 0) + " matching 4-gram tokens</b> across documents.</li>" +
 
-      (
-        roundedScore > 20
-          ? "Significant matching phrases detected."
-          : "Low phrase similarity across sections."
-      ) +
-
-      "</li>";
+      "<li>" + topPhraseItem + "</li>";
   }
 
 

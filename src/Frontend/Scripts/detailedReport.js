@@ -180,9 +180,10 @@ async function loadAndRenderReport() {
     }
   }
 
-  // If still no report, generate demo sample report for preview
+  // If still no report, show dynamic empty state
   if (!report) {
-    report = getDemoReport();
+    renderEmptyReportState();
+    return;
   }
 
   currentReport = report;
@@ -572,53 +573,27 @@ function escapeHtml(str) {
 }
 
 // =========================================
-// SAMPLE DEMO DATA (IF NO SESSION SAVED)
+// EMPTY STATE (WHEN NO REPORT FOUND)
 // =========================================
-function getDemoReport() {
-  return {
-    id: "REP-DEMO",
-    date: new Date().toISOString(),
-    filenames: ["CS-309_Unit_Test.txt", "CS-301_Mid_Semester.txt"],
-    similarity: 18.5,
-    roundedscore: 18.5,
-    textA: `CS-309 — AI & Neural Networks Unit Test
-Department of Computer Science
+function renderEmptyReportState() {
+  const container = document.querySelector(".rep-container");
+  if (!container) return;
 
-Instructions:
-- Write your answers clearly and avoid plagarism in any assigment.
-- An enviroment with proper testing was created.
-- The algorithm has the best average-case time complexity.
-- What is the worst-case time complexity of Merge Sort?
-- Which sorting algorithm is stable?
-- The space complexity of Heap Sort is O(1).
-- An unexpected error occured during algorithm execution.
-- Be careful not to recieve unverified code from unapproved sources.`,
-    textB: `CS-301 — Algorithms & Complexity Mid Semester
-Department of Computer Science
-
-Instructions:
-- Write your answers clearly and avoid plagarism in any assigment.
-- Ensure the proper development enviroment is set up.
-- The algorithm has the best average-case time complexity.
-- What is the worst-case time complexity of Merge Sort?
-- Which sorting algorithm is stable?
-- The space complexity of Heap Sort is O(1).
-- Verify all algorithms before final submission.`,
-    filefirstmatches: [
-      { phrase: "Department of Computer Science", startIndex: 6, endIndex: 10, length: 4 },
-      { phrase: "Write your answers clearly and avoid", startIndex: 12, endIndex: 18, length: 6 },
-      { phrase: "The algorithm has the best average-case time complexity.", startIndex: 28, endIndex: 36, length: 8 },
-      { phrase: "What is the worst-case time complexity of Merge Sort?", startIndex: 37, endIndex: 47, length: 9 },
-      { phrase: "Which sorting algorithm is stable?", startIndex: 48, endIndex: 53, length: 5 },
-      { phrase: "The space complexity of Heap Sort is O(1).", startIndex: 54, endIndex: 63, length: 9 }
-    ],
-    filesecondmatches: [
-      { phrase: "Department of Computer Science", startIndex: 6, endIndex: 10, length: 4 },
-      { phrase: "Write your answers clearly and avoid", startIndex: 12, endIndex: 18, length: 6 },
-      { phrase: "The algorithm has the best average-case time complexity.", startIndex: 24, endIndex: 32, length: 8 },
-      { phrase: "What is the worst-case time complexity of Merge Sort?", startIndex: 33, endIndex: 43, length: 9 },
-      { phrase: "Which sorting algorithm is stable?", startIndex: 44, endIndex: 49, length: 5 },
-      { phrase: "The space complexity of Heap Sort is O(1).", startIndex: 50, endIndex: 59, length: 9 }
-    ]
-  };
+  container.innerHTML = `
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:20px;padding:60px 24px;text-align:center;max-width:640px;margin:40px auto;box-shadow:0 4px 16px rgba(15,23,42,0.06);">
+      <div style="font-size:48px;margin-bottom:16px;">📄</div>
+      <h2 style="font-family:'Space Grotesk',sans-serif;font-size:24px;color:#0f172a;margin-bottom:10px;">No Report Selected</h2>
+      <p style="color:#64748b;font-size:15px;margin-bottom:28px;line-height:1.6;">
+        No analysis data was found in your current session. Please run a new assignment check or select a report from your history.
+      </p>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+        <a href="CheckAssign.html" class="btn btn-primary" style="padding:12px 24px;font-size:15px;">
+          + Run New Analysis
+        </a>
+        <a href="history.html" class="btn btn-outline" style="padding:12px 24px;font-size:15px;">
+          View History
+        </a>
+      </div>
+    </div>
+  `;
 }
