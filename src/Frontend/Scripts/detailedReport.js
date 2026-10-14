@@ -2,11 +2,13 @@
 // Logic for DetailedReport.html
 // Renders similarity highlights, common phrases, and spelling mistakes
 
+import API_BASE from "./config.js";
+import { showToast } from "./toast.js";
 import {
   detectSpellingMistakes,
   extractCommonPhrases,
   highlightTextWithMatchesAndTypos
-} from "../../Backend/SpellChecker.js";
+} from "./SpellChecker.js";
 
 // =========================================
 // GLOBAL STATE
@@ -25,6 +27,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   setupToggles();
   setupSearch();
   setupDownloadClean();
+  setupPdfExport();
 
   await loadAndRenderReport();
 });
@@ -119,6 +122,15 @@ function filterPhrases(query) {
 // =========================================
 // LOAD REPORT DATA (FROM URL, SESSION, OR DB)
 // =========================================
+function getAuthHeaders(extra = {}) {
+  const token = localStorage.getItem("authToken");
+  const headers = { ...extra };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 async function loadAndRenderReport() {
   let report = null;
 
@@ -128,7 +140,9 @@ async function loadAndRenderReport() {
 
   if (reportId) {
     try {
-      const response = await fetch("http://localhost:3000/reports/" + encodeURIComponent(reportId));
+      const response = await fetch(`${API_BASE}/reports/` + encodeURIComponent(reportId), {
+        headers: getAuthHeaders()
+      });
       if (response.ok) {
         report = await response.json();
       }
@@ -166,7 +180,9 @@ async function loadAndRenderReport() {
     const userEmail = localStorage.getItem("userEmail");
     if (userEmail) {
       try {
-        const response = await fetch("http://localhost:3000/fileresult?email=" + encodeURIComponent(userEmail));
+        const response = await fetch(`${API_BASE}/fileresult?email=` + encodeURIComponent(userEmail), {
+          headers: getAuthHeaders()
+        });
         if (response.ok) {
           const list = await response.json();
           if (list && list.length > 0 && Array.isArray(list[0].filesprocesed) && list[0].filesprocesed.length > 0) {
@@ -179,6 +195,23 @@ async function loadAndRenderReport() {
       }
     }
   }
+
+    // 5. Try fetching latest report from /reports (if user logged in or public)
+    if (!report) {
+      try {
+        const response = await fetch(`${API_BASE}/reports`, {
+          headers: getAuthHeaders()
+        });
+        if (response.ok) {
+          const list = await response.json();
+          if (Array.isArray(list) && list.length > 0) {
+            report = list[list.length - 1]; // latest report in database
+          }
+        }
+      } catch (e) {
+        console.warn("Reports API fallback error:", e);
+      }
+    }
 
   // If still no report, show dynamic empty state
   if (!report) {
@@ -225,13 +258,22 @@ function renderReportDetails(report) {
       ? report.matchesA
       : [];
 
-  // Detect spelling mistakes
-  currentTyposA = detectSpellingMistakes(textA, fileAName);
-  currentTyposB = detectSpellingMistakes(textB, fileBName);
+  // Detect spelling mistakes (pass peerText for cross-document contextual detection)
+  const dynamicTyposA = detectSpellingMistakes(textA, fileAName, { peerText: textB });
+  const dynamicTyposB = detectSpellingMistakes(textB, fileBName, { peerText: textA });
+
+  currentTyposA = (Array.isArray(report.spellingMistakesA) && report.spellingMistakesA.length > dynamicTyposA.length)
+    ? report.spellingMistakesA
+    : dynamicTyposA;
+  currentTyposB = (Array.isArray(report.spellingMistakesB) && report.spellingMistakesB.length > dynamicTyposB.length)
+    ? report.spellingMistakesB
+    : dynamicTyposB;
   allTypos = currentTyposA.concat(currentTyposB);
 
-  // Extract common phrases
-  currentPhrases = extractCommonPhrases(matchesA, textA, textB);
+  // Extract common phrases (use stored phrases if present, otherwise extract from matches / texts)
+  currentPhrases = (Array.isArray(report.commonPhrases) && report.commonPhrases.length > 0)
+    ? report.commonPhrases
+    : extractCommonPhrases(matchesA, textA, textB);
 
   // Total words
   const wordsA = textA ? textA.trim().split(/\s+/).length : 0;
@@ -239,15 +281,21 @@ function renderReportDetails(report) {
   const totalWords = wordsA + wordsB;
 
   // 1. Update Header Information
+  const isReferenceMode = report.mode === "reference" || report.type === "reference";
+  const reportModeChip = document.getElementById("reportModeChip");
+  if (reportModeChip) {
+    reportModeChip.textContent = isReferenceMode ? "Teacher vs Student Evaluation" : "Similarity Analysis";
+  }
+
   const subDocA = document.getElementById("subDocA");
   const subDocB = document.getElementById("subDocB");
-  if (subDocA) subDocA.textContent = fileAName;
-  if (subDocB) subDocB.textContent = fileBName;
+  if (subDocA) subDocA.textContent = isReferenceMode ? `Student: ${fileAName}` : fileAName;
+  if (subDocB) subDocB.textContent = isReferenceMode ? `Teacher Ref: ${fileBName}` : fileBName;
 
   const docAName = document.getElementById("docAName");
   const docBName = document.getElementById("docBName");
-  if (docAName) docAName.textContent = fileAName;
-  if (docBName) docBName.textContent = fileBName;
+  if (docAName) docAName.textContent = isReferenceMode ? `Student: ${fileAName}` : fileAName;
+  if (docBName) docBName.textContent = isReferenceMode ? `Teacher Ref: ${fileBName}` : fileBName;
 
   const docAMeta = document.getElementById("docAMeta");
   const docBMeta = document.getElementById("docBMeta");
@@ -267,6 +315,23 @@ function renderReportDetails(report) {
   const reportIdSpan = document.getElementById("reportIdSpan");
   if (reportIdSpan) {
     reportIdSpan.textContent = "ID: #" + (report.id || "REP-" + Math.floor(1000 + Math.random() * 9000));
+  }
+
+  // 1b. Update Filter Badges
+  const filterBadges = document.getElementById("filterBadges");
+  if (filterBadges) {
+    const filters = report.filters || {};
+    const active = [];
+    if (filters.excludeReferences) active.push("Excluded References");
+    if (filters.excludeQuotes) active.push("Excluded Quotes");
+    if (filters.excludeSmallMatches) active.push("Excluded Small Matches (≥7-grams)");
+
+    if (active.length > 0) {
+      filterBadges.textContent = "Filters: " + active.join(" • ");
+      filterBadges.style.display = "inline-flex";
+    } else {
+      filterBadges.style.display = "none";
+    }
   }
 
   // 2. Update Score Circle & Risk Badge
@@ -360,14 +425,16 @@ function renderDocumentTexts(showMatches, showTypos) {
   if (docABody) {
     docABody.innerHTML = highlightTextWithMatchesAndTypos(textA, matchesA, currentTyposA, {
       showMatches: showMatches,
-      showTypos: showTypos
+      showTypos: showTypos,
+      otherText: textB
     });
   }
 
   if (docBBody) {
     docBBody.innerHTML = highlightTextWithMatchesAndTypos(textB, matchesB, currentTyposB, {
       showMatches: showMatches,
-      showTypos: showTypos
+      showTypos: showTypos,
+      otherText: textA
     });
   }
 }
@@ -533,7 +600,7 @@ function setupDownloadClean() {
 
 function downloadCorrectedDocument(text, typos, filename) {
   if (!text) {
-    alert("No document text to export.");
+    showToast("No document text to export.", "warning");
     return;
   }
 
@@ -573,6 +640,221 @@ function escapeHtml(str) {
 }
 
 // =========================================
+// PDF EXPORT & PRINT SETUP
+// =========================================
+function setupPdfExport() {
+  const downloadPdfBtn = document.getElementById("downloadPdfBtn");
+  const printReportBtn = document.getElementById("printReportBtn");
+  const summaryDownloadPdfBtn = document.getElementById("summaryDownloadPdfBtn");
+  const summaryPrintBtn = document.getElementById("summaryPrintBtn");
+
+  if (downloadPdfBtn) downloadPdfBtn.addEventListener("click", generatePdfReport);
+  if (summaryDownloadPdfBtn) summaryDownloadPdfBtn.addEventListener("click", generatePdfReport);
+  if (printReportBtn) printReportBtn.addEventListener("click", () => window.print());
+  if (summaryPrintBtn) summaryPrintBtn.addEventListener("click", () => window.print());
+}
+
+async function generatePdfReport() {
+  if (!currentReport) {
+    showToast("No report data available to export.", "warning");
+    return;
+  }
+
+  showToast("Generating official PDF report... Please wait.", "info", 4000);
+
+  let fileAName = "Document_A";
+  let fileBName = "Document_B";
+  if (Array.isArray(currentReport.filenames) && currentReport.filenames.length >= 2) {
+    fileAName = currentReport.filenames[0];
+    fileBName = currentReport.filenames[1];
+  } else if (Array.isArray(currentReport.files) && currentReport.files.length >= 2) {
+    fileAName = currentReport.files[0];
+    fileBName = currentReport.files[1];
+  }
+
+  let similarity = 0;
+  if (currentReport.roundedscore !== undefined) {
+    similarity = parseFloat(currentReport.roundedscore);
+  } else if (currentReport.similarity !== undefined) {
+    similarity = parseFloat(currentReport.similarity);
+  }
+
+  const isReferenceMode = currentReport.mode === "reference" || currentReport.type === "reference";
+  const reportId = currentReport.id || currentReport.customId || currentReport._id || ("REP-" + Date.now().toString(36).toUpperCase());
+  const reportDate = currentReport.date ? new Date(currentReport.date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : new Date().toLocaleString();
+  const userEmail = localStorage.getItem("userEmail") || currentReport.email || "Verified Student";
+
+  const wordsA = (currentReport.textA || "").trim().split(/\s+/).filter(Boolean).length;
+  const wordsB = (currentReport.textB || "").trim().split(/\s+/).filter(Boolean).length;
+  const typosCount = (currentTyposA ? currentTyposA.length : 0) + (currentTyposB ? currentTyposB.length : 0);
+  const commonGramsCount = currentPhrases ? currentPhrases.length : 0;
+
+  let riskColor = "#10b981";
+  let riskBg = "#ecfdf5";
+  let riskText = "Low Risk of Plagiarism";
+  if (similarity >= 50) {
+    riskColor = "#e11d48";
+    riskBg = "#fff1f2";
+    riskText = "High Risk of Plagiarism";
+  } else if (similarity >= 20) {
+    riskColor = "#f59e0b";
+    riskBg = "#fffbeb";
+    riskText = "Moderate Risk of Plagiarism";
+  }
+
+  const filters = currentReport.filters || {};
+  const activeFilters = [];
+  if (filters.excludeReferences) activeFilters.push("Excluded References");
+  if (filters.excludeQuotes) activeFilters.push("Excluded Quotes");
+  if (filters.excludeSmallMatches) activeFilters.push("Excluded Small Matches");
+  const filtersText = activeFilters.length > 0 ? activeFilters.join(" • ") : "Standard (No Exclusions)";
+
+  let phrasesHtml = "";
+  if (currentPhrases && currentPhrases.length > 0) {
+    const topPhrases = currentPhrases.slice(0, 8);
+    phrasesHtml = topPhrases
+      .map(
+        (p, idx) => `
+        <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:12px;">
+          <span style="color:#4f46e5;font-weight:700;">#${idx + 1}</span>
+          <span style="color:#1e293b;flex:1;font-style:italic;">"${escapeHtml(p.phrase)}"</span>
+          <span style="color:#64748b;font-size:11px;">${p.wordCount || 4} words</span>
+        </div>`
+      )
+      .join("");
+  } else {
+    phrasesHtml = `<p style="color:#64748b;font-size:12px;margin:0;">No long matching phrases detected.</p>`;
+  }
+
+  const container = document.createElement("div");
+  container.id = "assigncheck-pdf-export";
+  container.style.cssText = `
+    width: 760px;
+    padding: 36px 40px;
+    background: #ffffff;
+    color: #0f172a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
+    line-height: 1.5;
+    box-sizing: border-box;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: -9999;
+    opacity: 1;
+    pointer-events: none;
+  `;
+
+  container.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:16px;border-bottom:2px solid #4f46e5;margin-bottom:24px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:36px;height:36px;border-radius:10px;background:#4f46e5;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;">A</div>
+        <div>
+          <h2 style="margin:0;font-size:20px;font-weight:800;color:#1e1b4b;letter-spacing:-0.5px;">AssignCheck</h2>
+          <p style="margin:0;font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Academic Similarity & Integrity Certificate</p>
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:12px;font-weight:700;color:#4f46e5;">ID: ${escapeHtml(reportId)}</div>
+        <div style="font-size:11px;color:#64748b;">${escapeHtml(reportDate)}</div>
+      </div>
+    </div>
+
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+      <div>
+        <div style="font-size:12px;text-transform:uppercase;color:#64748b;font-weight:700;margin-bottom:4px;">Evaluated For:</div>
+        <div style="font-size:15px;font-weight:700;color:#0f172a;">${escapeHtml(userEmail)}</div>
+        <div style="font-size:12px;color:#64748b;margin-top:6px;">
+          Mode: <b style="color:#4f46e5;">${isReferenceMode ? "Teacher vs Student Evaluation" : "Student vs Student"}</b>
+          • Comparing: <b style="color:#1e293b;">${escapeHtml(fileAName)}</b> vs <b style="color:#1e293b;">${escapeHtml(fileBName)}</b>
+        </div>
+        <div style="font-size:11px;color:#64748b;margin-top:4px;">
+          Filters: <span style="color:#4f46e5;font-weight:600;">${escapeHtml(filtersText)}</span>
+        </div>
+      </div>
+      <div style="text-align:center;padding:12px 20px;border-radius:12px;background:${riskBg};border:1px solid ${riskColor}33;">
+        <div style="font-size:32px;font-weight:900;color:${riskColor};line-height:1;">${similarity.toFixed(1)}%</div>
+        <div style="font-size:11px;font-weight:700;color:${riskColor};text-transform:uppercase;margin-top:4px;">${escapeHtml(riskText)}</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:12px;margin-bottom:24px;">
+      <div style="background:#f1f5f9;border-radius:10px;padding:12px;text-align:center;">
+        <div style="font-size:11px;color:#64748b;font-weight:600;">Doc A Words</div>
+        <div style="font-size:18px;font-weight:800;color:#1e293b;margin-top:2px;">${wordsA}</div>
+      </div>
+      <div style="background:#f1f5f9;border-radius:10px;padding:12px;text-align:center;">
+        <div style="font-size:11px;color:#64748b;font-weight:600;">Doc B Words</div>
+        <div style="font-size:18px;font-weight:800;color:#1e293b;margin-top:2px;">${wordsB}</div>
+      </div>
+      <div style="background:#f1f5f9;border-radius:10px;padding:12px;text-align:center;">
+        <div style="font-size:11px;color:#64748b;font-weight:600;">Common Phrases</div>
+        <div style="font-size:18px;font-weight:800;color:#4f46e5;margin-top:2px;">${commonGramsCount}</div>
+      </div>
+      <div style="background:#f1f5f9;border-radius:10px;padding:12px;text-align:center;">
+        <div style="font-size:11px;color:#64748b;font-weight:600;">Typos Flagged</div>
+        <div style="font-size:18px;font-weight:800;color:#f59e0b;margin-top:2px;">${typosCount}</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:24px;">
+      <h3 style="font-size:14px;font-weight:800;color:#1e1b4b;margin:0 0 10px 0;text-transform:uppercase;letter-spacing:0.5px;">
+        Key Matching Phrases & Common Sequences
+      </h3>
+      <div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;background:#ffffff;">
+        ${phrasesHtml}
+      </div>
+    </div>
+
+    <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:14px 18px;margin-bottom:24px;">
+      <h4 style="margin:0 0 4px 0;font-size:12px;font-weight:800;color:#6b21a8;text-transform:uppercase;">Detection Methodology</h4>
+      <p style="margin:0;font-size:11.5px;color:#581c87;line-height:1.5;">
+        Analysis performed using multi-stage linear chunking (100-word blocks), sliding window ${filters.excludeSmallMatches ? "7-gram" : "4-gram"} tokenization, and Jaccard intersection coefficients. Preprocessing filter rules applied: ${escapeHtml(filtersText)}.
+      </p>
+    </div>
+
+    <div style="border-top:1px dashed #cbd5e1;padding-top:16px;display:flex;justify-content:space-between;align-items:flex-end;">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#475569;">OFFICIAL DIGITAL VERIFICATION</div>
+        <div style="font-size:10px;color:#94a3b8;margin-top:2px;">Generated via AssignCheck Evaluation Core v2.0 • Secured by MongoDB Atlas</div>
+      </div>
+      <div style="text-align:center;border:2px solid #4f46e5;color:#4f46e5;padding:6px 14px;border-radius:8px;font-size:10px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;">
+        VERIFIED CERTIFICATE
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(container);
+
+  if (typeof window.html2pdf === "function") {
+    const opt = {
+      margin: 10,
+      filename: `AssignCheck_Report_${fileAName.replace(/[^a-zA-Z0-9_-]/g, "_")}.pdf`,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+    };
+
+    try {
+      await window.html2pdf().set(opt).from(container).save();
+      showToast("Official PDF Report downloaded successfully!", "success");
+    } catch (e) {
+      console.error("html2pdf failed:", e);
+      showToast("PDF generator failed. Triggering print dialog fallback.", "error");
+      window.print();
+    } finally {
+      if (document.body.contains(container)) {
+        document.body.removeChild(container);
+      }
+    }
+  } else {
+    window.print();
+    if (document.body.contains(container)) {
+      document.body.removeChild(container);
+    }
+  }
+}
+
+// =========================================
 // EMPTY STATE (WHEN NO REPORT FOUND)
 // =========================================
 function renderEmptyReportState() {
@@ -584,10 +866,13 @@ function renderEmptyReportState() {
       <div style="font-size:48px;margin-bottom:16px;">📄</div>
       <h2 style="font-family:'Space Grotesk',sans-serif;font-size:24px;color:#0f172a;margin-bottom:10px;">No Report Selected</h2>
       <p style="color:#64748b;font-size:15px;margin-bottom:28px;line-height:1.6;">
-        No analysis data was found in your current session. Please run a new assignment check or select a report from your history.
+        No active analysis was found in your current session. You can run a new assignment check, view your history, or preview a demo report.
       </p>
       <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
-        <a href="CheckAssign.html" class="btn btn-primary" style="padding:12px 24px;font-size:15px;">
+        <button id="loadSampleReportBtn" class="btn btn-primary" style="padding:12px 24px;font-size:15px;">
+          ✨ Load Demo Report
+        </button>
+        <a href="CheckAssign.html" class="btn btn-outline" style="padding:12px 24px;font-size:15px;">
           + Run New Analysis
         </a>
         <a href="history.html" class="btn btn-outline" style="padding:12px 24px;font-size:15px;">
@@ -596,4 +881,38 @@ function renderEmptyReportState() {
       </div>
     </div>
   `;
+
+  const loadSampleBtn = document.getElementById("loadSampleReportBtn");
+  if (loadSampleBtn) {
+    loadSampleBtn.addEventListener("click", function () {
+      const sampleReport = {
+        id: "REP-DEMO-SAMPLE",
+        filenames: ["Assignment_Student_Alpha.txt", "Assignment_Student_Beta.txt"],
+        type: "student",
+        similarity: 42.5,
+        date: new Date().toISOString(),
+        textA: "Neural networks are computational models used in machine learning applications for classification and regression tasks. In this assigment, we implement deep neural architectures to analyze high dimensional data. The algorithm has the best average-case time complexity. An unexpected error occured during execution because the enviroment was not properly configured. Write your answers clearly and avoid plagarism in any academic submission. Students must recieve guidance from faculty before submitting final reports.",
+        textB: "Deep neural networks are computational models used in machine learning applications for classification and pattern recognition. In this assigment, we build multilayer models to analyze high dimensional data. The algorithm has the best average-case time complexity. Furthermore, an unexpected error occured during program execution. Write your answers clearly and avoid plagarism in any academic submission. Every student should recieve proper feedback from teachers.",
+        filefirstmatches: [
+          "computational models used in machine learning applications for classification",
+          "In this assigment, we",
+          "to analyze high dimensional data",
+          "The algorithm has the best average-case time complexity.",
+          "an unexpected error occured during",
+          "Write your answers clearly and avoid plagarism in any academic submission."
+        ],
+        filesecondmatches: [
+          "computational models used in machine learning applications for classification",
+          "In this assigment, we",
+          "to analyze high dimensional data",
+          "The algorithm has the best average-case time complexity.",
+          "an unexpected error occured during",
+          "Write your answers clearly and avoid plagarism in any academic submission."
+        ]
+      };
+      currentReport = sampleReport;
+      renderReportDetails(sampleReport);
+      showToast("Demo report loaded successfully!", "success");
+    });
+  }
 }

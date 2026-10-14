@@ -2,12 +2,13 @@ import {
   handleLogin,
   handleSignup,
   resetPassword,
+  handleSendResetCode,
   togglePassword,
   logoutUser,
   updateNavbar,
   closeAuth,
   showFormError,
-} from "../../Backend/HomeBackend.js";
+} from "./HomeBackend.js";
 
 // =========================================
 // LOGIN FORM
@@ -30,13 +31,18 @@ if (signupForm !== null) {
 }
 
 // =========================================
-// RESET PASSWORD FORM
+// RESET PASSWORD FORM & VERIFICATION CODE
 // =========================================
 
 const resetForm = document.getElementById("resetForm");
 
 if (resetForm !== null) {
   resetForm.addEventListener("submit", resetPassword);
+}
+
+const sendResetCodeBtn = document.getElementById("sendResetCodeBtn");
+if (sendResetCodeBtn !== null) {
+  sendResetCodeBtn.addEventListener("click", handleSendResetCode);
 }
 
 // =========================================

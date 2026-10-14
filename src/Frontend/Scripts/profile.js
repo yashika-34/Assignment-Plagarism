@@ -11,13 +11,7 @@
    - Logout
 ========================================================= */
 
-"use strict";
-
-/* =========================================================
-   CONFIGURATION
-========================================================= */
-
-const API_BASE = "http://localhost:3000";
+import API_BASE from "./config.js";
 
 const USERS_API = `${API_BASE}/users`;
 const FILEDATA_API = `${API_BASE}/filedata`;
@@ -52,13 +46,15 @@ let analysisResults = [];
 ========================================================= */
 
 function getCurrentEmail() {
-
-    return (
+    const email = (
         localStorage.getItem("userEmail") ||
         localStorage.getItem("email") ||
-        loggedIn ||
         ""
     ).trim();
+    if (email && email !== "true" && email !== "null") {
+        return email;
+    }
+    return "";
 }
 
 
@@ -254,8 +250,16 @@ function showToast(message) {
    GET USER
 ========================================================= */
 
-async function getUser() {
+function getAuthHeaders(extra = {}) {
+    const token = localStorage.getItem("authToken");
+    const headers = { ...extra };
+    if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+    }
+    return headers;
+}
 
+async function getUser() {
     const email = getCurrentEmail();
 
     if (!email) {
@@ -263,9 +267,9 @@ async function getUser() {
     }
 
     try {
-
         const response = await fetch(
-            `${USERS_API}?email=${encodeURIComponent(email)}`
+            `${USERS_API}?email=${encodeURIComponent(email)}`,
+            { headers: getAuthHeaders() }
         );
 
         if (!response.ok) {
@@ -282,7 +286,6 @@ async function getUser() {
         }
 
     } catch (error) {
-
         console.error(
             "USER LOAD ERROR:",
             error
@@ -298,7 +301,6 @@ async function getUser() {
 ========================================================= */
 
 async function getFileData() {
-
     const email = getCurrentEmail();
 
     if (!email) {
@@ -306,9 +308,9 @@ async function getFileData() {
     }
 
     try {
-
         const response = await fetch(
-            `${FILEDATA_API}?email=${encodeURIComponent(email)}`
+            `${FILEDATA_API}?email=${encodeURIComponent(email)}`,
+            { headers: getAuthHeaders() }
         );
 
         if (!response.ok) {
@@ -325,7 +327,6 @@ async function getFileData() {
         }
 
     } catch (error) {
-
         console.error(
             "FILEDATA LOAD ERROR:",
             error
@@ -341,45 +342,47 @@ async function getFileData() {
 ========================================================= */
 
 async function getFileResults() {
-
     const email = getCurrentEmail();
+    const results = [];
 
-    if (!email) {
-        return [];
+    // 1. Query MongoDB /reports endpoint
+    if (email) {
+        try {
+            const resp = await fetch(`${API_BASE}/reports?email=${encodeURIComponent(email)}`, {
+                headers: getAuthHeaders()
+            });
+            if (resp.ok) {
+                const repData = await resp.json();
+                if (Array.isArray(repData)) {
+                    results.push(...repData);
+                }
+            }
+        } catch (e) {
+            console.warn("Reports API notice:", e);
+        }
     }
 
-    try {
-
-        const response = await fetch(
-            `${FILERESULT_API}?email=${encodeURIComponent(email)}`
-        );
-
-        if (!response.ok) {
-            throw new Error("Fileresult API failed");
+    // 2. Query /fileresult fallback
+    if (email) {
+        try {
+            const response = await fetch(
+                `${FILERESULT_API}?email=${encodeURIComponent(email)}`,
+                { headers: getAuthHeaders() }
+            );
+            if (response.ok) {
+                const data = await response.json();
+                if (Array.isArray(data)) {
+                    results.push(...data);
+                } else if (data && typeof data === "object") {
+                    results.push(data);
+                }
+            }
+        } catch (error) {
+            console.warn("Fileresult API notice:", error);
         }
-
-        const data = await response.json();
-
-        if (Array.isArray(data)) {
-            return data;
-        }
-
-        if (
-            data &&
-            typeof data === "object"
-        ) {
-            return [data];
-        }
-
-    } catch (error) {
-
-        console.error(
-            "FILERESULT LOAD ERROR:",
-            error
-        );
     }
 
-    return [];
+    return results;
 }
 
 
@@ -854,7 +857,9 @@ function getSavedReports(resultData, fileData) {
 
         const sessionKeys = [
             "assignCheckReport",
-            "lastAnalysisResult"
+            "lastAnalysisResult",
+            "reportData",
+            "selectedReport"
         ];
 
 
@@ -1291,89 +1296,71 @@ function viewReport(
 ) {
 
     if (!report) {
-
-        showToast(
-            "Report not found."
-        );
-
+        showToast("Report not found.");
         return;
     }
-
 
     try {
-
-        sessionStorage.setItem(
-            "selectedReport",
-            JSON.stringify(report)
-        );
-
-
+        sessionStorage.setItem("selectedReport", JSON.stringify(report));
+        sessionStorage.setItem("reportData", JSON.stringify(report));
+        sessionStorage.setItem("lastAnalysisResult", JSON.stringify(report));
+        sessionStorage.setItem("showsthedisplayornot", "true");
+        sessionStorage.setItem("viewReport", "true");
         sessionStorage.setItem(
             "selectedReportId",
-            String(
-                report.id ??
-                report.reportId ??
-                index ??
-                ""
-            )
+            String(report.id ?? report.customId ?? report._id ?? index ?? "")
         );
-
-
-        sessionStorage.setItem(
-            "viewReport",
-            "true"
-        );
-
-
-        sessionStorage.setItem(
-            "showsthedisplayornot",
-            "true"
-        );
-
-
     } catch (error) {
-
-        console.error(
-            "REPORT SAVE ERROR:",
-            error
-        );
-
+        console.error("REPORT SAVE ERROR:", error);
         return;
     }
 
-
-    window.location.href =
-        "../Templates/DetailedReport.html";
+    const repId = report.id || report.customId || report._id;
+    if (repId) {
+        window.location.href = "DetailedReport.html?id=" + encodeURIComponent(repId);
+    } else {
+        window.location.href = "DetailedReport.html";
+    }
 }
 
 
 /* =========================================================
-   OPEN REPORT BY INDEX
+   OPEN REPORT (BY INDEX OR LATEST)
 ========================================================= */
 
 function openReport(index) {
+    // If called with no argument, open latest analysis
+    if (index === undefined || index === null || isNaN(Number(index))) {
+        if (analysisResults && analysisResults.length > 0) {
+            viewReport(analysisResults[0], 0);
+            return;
+        }
+
+        const sessionRaw = sessionStorage.getItem("reportData") || sessionStorage.getItem("lastAnalysisResult") || sessionStorage.getItem("selectedReport");
+        if (sessionRaw) {
+            try {
+                const parsed = JSON.parse(sessionRaw);
+                viewReport(parsed, 0);
+                return;
+            } catch (e) {}
+        }
+
+        window.location.href = "DetailedReport.html";
+        return;
+    }
 
     index = Number(index);
-
 
     if (
         isNaN(index) ||
         index < 0 ||
         index >= analysisResults.length
     ) {
-
-        showToast(
-            "Report not found."
-        );
-
+        showToast("Report not found.");
         return;
     }
 
-
-    viewReport(
-        analysisResults[index],
-        index
-    );
+    viewReport(analysisResults[index], index);
 }
 
 
@@ -1630,6 +1617,10 @@ function setupLogout() {
         function () {
 
             localStorage.removeItem(
+                "authToken"
+            );
+
+            localStorage.removeItem(
                 "loggedIn"
             );
 
@@ -1868,7 +1859,7 @@ async function refreshProfile() {
 function goToDashboard() {
 
     window.location.href =
-        "../Templates/index.html";
+        "CheckAssign.html";
 }
 
 
