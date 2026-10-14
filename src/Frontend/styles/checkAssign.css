@@ -2061,15 +2061,170 @@
 
     }
 
+        /* ===================== PROFILE AVATAR BUTTON ===================== */
+    .profile-wrap {
+      position: relative;
+      display: none;
+    }
+    .profile-wrap.show {
+      display: block;
+    }
+    .pfp-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, var(--primary), #7c3aed);
+      color: #fff;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 14px;
+      box-shadow: 0 6px 18px rgba(79, 70, 229, 0.28);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      cursor: pointer;
+      border: none;
+    }
+    .pfp-btn:hover {
+      transform: translateY(-2px) scale(1.06);
+      box-shadow: 0 8px 24px rgba(79, 70, 229, 0.38);
+    }
+
+    /* ===================== PROFILE DROPDOWN MENU ===================== */
+    .profile-menu {
+      position: absolute;
+      right: 0;
+      top: 52px;
+      width: 196px;
+      background: #fff;
+      border: 1.5px solid var(--line);
+      border-radius: 16px;
+      padding: 8px;
+      box-shadow: var(--shadow-lg);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-6px);
+      transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s;
+      z-index: 200;
+    }
+    .profile-menu.open {
+      opacity: 1;
+      visibility: visible;
+      transform: none;
+    }
+    .profile-menu a,
+    .profile-menu button {
+      display: flex;
+      width: 100%;
+      align-items: center;
+      padding: 11px 12px;
+      border-radius: 10px;
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--ink-soft);
+      text-align: left;
+      text-decoration: none;
+      border: none;
+      background: none;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+    .profile-menu a:hover,
+    .profile-menu button:hover {
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+    .profile-menu .logout-item {
+      color: #dc2626;
+    }
+    .profile-menu .logout-item:hover {
+      background: #fff1f2;
+      color: #b91c1c;
+    }
+
+    /* ===================== NAV HAMBURGER TOGGLE ===================== */
+    .nav-toggle {
+      display: none;
+      margin-left: auto;
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      border: 1.5px solid var(--line-strong);
+      background: none;
+      cursor: pointer;
+      position: relative;
+    }
+    .nav-toggle span {
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      height: 2px;
+      border-radius: 2px;
+      background: var(--ink);
+      transition: top 0.28s ease, transform 0.28s ease, opacity 0.2s ease;
+    }
+    .nav-toggle span:nth-child(1) { top: 15px; }
+    .nav-toggle span:nth-child(2) { top: 21px; }
+    .nav-toggle span:nth-child(3) { top: 27px; }
+    .nav.open .nav-toggle span:nth-child(1) { top: 21px; transform: rotate(45deg); }
+    .nav.open .nav-toggle span:nth-child(2) { opacity: 0; }
+    .nav.open .nav-toggle span:nth-child(3) { top: 21px; transform: rotate(-45deg); }
+
+    /* ===================== MOBILE SLIDE-DOWN MENU ===================== */
     .mobile-menu {
       display: none;
+      max-height: 0;
+      overflow: hidden;
+      border-top: 1px solid transparent;
+      transition: max-height 0.38s ease;
+      background: #fff;
     }
-
-    .profile-menu {
+    .nav.open .mobile-menu {
+      max-height: 520px;
+      border-top-color: var(--line);
+    }
+    .mobile-menu nav {
+      display: flex;
+      flex-direction: column;
+      padding: 12px 24px 10px;
+    }
+    .mobile-menu nav a {
+      padding: 15px 4px;
+      font-weight: 700;
+      color: var(--ink-soft);
+      border-bottom: 1px solid var(--bg-soft);
+      font-size: 16px;
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }
+    .mobile-menu nav a.active,
+    .mobile-menu nav a:hover {
+      color: var(--primary);
+    }
+    .mobile-cta {
+      display: flex;
+      gap: 12px;
+      padding: 18px 24px 24px;
+    }
+    .mobile-profile {
+      display: none;
+      position: relative;
+    }
+    .mobile-profile.show {
+      display: block;
+    }
+    .mobile-profile .profile-menu {
+      position: static;
+      width: 100%;
+      margin-top: 10px;
+      box-shadow: none;
+      opacity: 1;
+      visibility: visible;
+      transform: none;
       display: none;
     }
-
-    .profile-menu.open {
+    .mobile-profile .profile-menu.open {
       display: block;
     }
 
