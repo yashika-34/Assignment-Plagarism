@@ -9,6 +9,7 @@ import {
   extractCommonPhrases,
   highlightTextWithMatchesAndTypos
 } from "./SpellChecker.js";
+import { openCertificateModal } from "./certificateModal.js";
 
 // =========================================
 // GLOBAL STATE
@@ -647,11 +648,24 @@ function setupPdfExport() {
   const printReportBtn = document.getElementById("printReportBtn");
   const summaryDownloadPdfBtn = document.getElementById("summaryDownloadPdfBtn");
   const summaryPrintBtn = document.getElementById("summaryPrintBtn");
+  const btnOpenCertificate = document.getElementById("btnOpenCertificate");
+  const summaryCertificateBtn = document.getElementById("summaryCertificateBtn");
 
   if (downloadPdfBtn) downloadPdfBtn.addEventListener("click", generatePdfReport);
   if (summaryDownloadPdfBtn) summaryDownloadPdfBtn.addEventListener("click", generatePdfReport);
   if (printReportBtn) printReportBtn.addEventListener("click", () => window.print());
   if (summaryPrintBtn) summaryPrintBtn.addEventListener("click", () => window.print());
+
+  if (btnOpenCertificate) {
+    btnOpenCertificate.addEventListener("click", () => {
+      openCertificateModal(currentReport);
+    });
+  }
+  if (summaryCertificateBtn) {
+    summaryCertificateBtn.addEventListener("click", () => {
+      openCertificateModal(currentReport);
+    });
+  }
 }
 
 async function generatePdfReport() {

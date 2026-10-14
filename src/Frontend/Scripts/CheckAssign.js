@@ -2,6 +2,7 @@
 
 import API_BASE from "./config.js";
 import { showToast } from "./toast.js";
+import { openCertificateModal } from "./certificateModal.js";
 
 /* =========================================================
    ASSIGNCHECK — CHECKASSIGN.JS
@@ -2854,6 +2855,24 @@ if (viewReportBtn) {
       }
     }
   );
+}
+
+const btnCertificate = document.getElementById("btnCertificate");
+if (btnCertificate) {
+  btnCertificate.addEventListener("click", function () {
+    let reportData = null;
+    try {
+      const stored = sessionStorage.getItem("reportData") || sessionStorage.getItem("lastAnalysisResult");
+      if (stored) {
+        reportData = JSON.parse(stored);
+      }
+    } catch (e) {}
+    if (reportData) {
+      openCertificateModal(reportData);
+    } else {
+      showToast("No active analysis result to certify.", "warning");
+    }
+  });
 }
 
 // Profile dropdown & logout listeners

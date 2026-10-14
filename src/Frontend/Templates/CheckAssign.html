@@ -33,7 +33,11 @@
   <!-- Mammoth.js for reading Word DOCX documents -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
-    <link rel="stylesheet" href="../styles/checkAssign.css">
+  <!-- html2pdf.js for exporting official PDF certificates -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <link rel="stylesheet" href="../styles/checkAssign.css">
+  <link rel="stylesheet" href="../styles/certificate.css">
 </head>
 
 <body>
@@ -430,11 +434,14 @@
             <button type="button" class="btn btn-outline" id="backToBatchBtn" style="display:none">
               ← Back to Classroom Matrix
             </button>
+            <button type="button" class="btn" id="btnCertificate" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(217,119,6,0.25);cursor:pointer;">
+              🎖️ Clearance Certificate
+            </button>
             <button type="button" class="btn btn-ghost" id="viewReportBtn">
               <svg class="ic">
                 <use href="#i-file" />
               </svg>
-              View Report
+              View Detailed Report
             </button>
             <button type="button" class="btn btn-primary" id="newAnalysisBtn">
               <svg class="ic">

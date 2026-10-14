@@ -11,6 +11,7 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link rel="stylesheet" href="../styles/detailedReport.css">
+    <link rel="stylesheet" href="../styles/certificate.css">
 </head>
 <body>
 
@@ -32,6 +33,9 @@
     </div>
 
     <div class="rep-nav-actions">
+      <button class="btn" id="btnOpenCertificate" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(217,119,6,0.25);cursor:pointer;">
+        🎖️ Plagiarism Certificate
+      </button>
       <button class="btn btn-primary" id="downloadPdfBtn">
         📥 Download PDF Report
       </button>
@@ -304,9 +308,12 @@
               <div>Save or print this report for your records.</div>
             </li>
           </ul>
-          <div style="margin-top:20px;display:flex;gap:10px;">
+          <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap;">
             <button class="btn btn-primary" id="summaryDownloadPdfBtn" style="flex:1;justify-content:center;">
               📥 Download PDF Report
+            </button>
+            <button class="btn" id="summaryCertificateBtn" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;font-weight:700;display:inline-flex;align-items:center;gap:6px;justify-content:center;padding:8px 16px;border-radius:8px;cursor:pointer;">
+              🎖️ Official Certificate
             </button>
             <button class="btn btn-outline" id="summaryPrintBtn" style="justify-content:center;">
               🖨️ Print

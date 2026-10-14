@@ -9,6 +9,10 @@ const {
   compareDocuments
 } = require("../src/Services/plagiarismEngine");
 
+const { detectSpellingMistakesSync } = require("../src/Services/spellCheckService");
+
+(async () => {
+
 let passed = 0;
 let failed = 0;
 
@@ -92,30 +96,30 @@ console.log("\n📋 SECTION 3: Similarity — Edge Cases");
 // ===============================================================
 
 {
-  const result = compareDocuments("", "some content here");
+  const result = await compareDocuments("", "some content here");
   assert(result.similarity === 0, "Empty document A gives 0% similarity");
 }
 
 {
-  const result = compareDocuments("some content here", "");
+  const result = await compareDocuments("some content here", "");
   assert(result.similarity === 0, "Empty document B gives 0% similarity");
 }
 
 {
-  const result = compareDocuments("", "");
+  const result = await compareDocuments("", "");
   assert(result.similarity === 0, "Both empty documents give 0% similarity");
 }
 
 {
   const text = "the quick brown fox jumps over the lazy dog and the fox ran away";
-  const result = compareDocuments(text, text);
+  const result = await compareDocuments(text, text);
   assert(result.similarity === 100, "Identical documents give 100% similarity", `got ${result.similarity}`);
 }
 
 {
   const textA = "the sky is blue and clouds are white";
   const textB = "apples oranges bananas grapes watermelon mango kiwi fruit";
-  const result = compareDocuments(textA, textB);
+  const result = await compareDocuments(textA, textB);
   assert(result.similarity < 10, "Completely different documents give very low similarity", `got ${result.similarity}`);
 }
 
@@ -126,8 +130,8 @@ console.log("\n📋 SECTION 4: Symmetry Tests (Sim(A,B) must equal Sim(B,A))");
 {
   const textA = "plagiarism detection algorithms use shingling and jaccard similarity";
   const textB = "shingling is used in plagiarism detection to compute jaccard coefficients for comparison";
-  const result1 = compareDocuments(textA, textB);
-  const result2 = compareDocuments(textB, textA);
+  const result1 = await compareDocuments(textA, textB);
+  const result2 = await compareDocuments(textB, textA);
   assert(
     result1.similarity === result2.similarity,
     `Symmetry: compareDocuments(A, B) === compareDocuments(B, A)`,
@@ -145,8 +149,8 @@ console.log("\n📋 SECTION 4: Symmetry Tests (Sim(A,B) must equal Sim(B,A))");
     "violations may result in grade penalties up to and including failure of the course"
   ].join(". ");
 
-  const result1 = compareDocuments(textA, textB);
-  const result2 = compareDocuments(textB, textA);
+  const result1 = await compareDocuments(textA, textB);
+  const result2 = await compareDocuments(textB, textA);
   assert(
     result1.similarity === result2.similarity,
     "Symmetry holds with documents of different lengths",
@@ -166,7 +170,7 @@ console.log("\n📋 SECTION 5: Directional Coverage");
 {
   const textA = "the quick brown fox jumps over the lazy dog";
   const textB = "the quick brown fox jumps over the lazy dog and also runs around the field near the river";
-  const result = compareDocuments(textA, textB);
+  const result = await compareDocuments(textA, textB);
   assert(
     result.coverageA >= result.similarity,
     "Coverage of A in B (short in long) >= overall similarity",
@@ -187,7 +191,7 @@ console.log("\n📋 SECTION 6: Partial Overlap");
   // Use texts that genuinely share consecutive 4-gram phrases
   const textA = "neural networks are used in machine learning for classification tasks and regression analysis";
   const textB = "machine learning uses neural networks to perform classification tasks in image recognition systems";
-  const result = compareDocuments(textA, textB);
+  const result = await compareDocuments(textA, textB);
   // Both contain "neural networks" and "machine learning" but 4-gram overlap depends on word order
   assert(typeof result.similarity === "number" && result.similarity >= 0 && result.similarity <= 100,
     "Partial overlap gives a numeric similarity between 0% and 100%", `got ${result.similarity}`);
@@ -203,8 +207,8 @@ console.log("\n📋 SECTION 7: Word Insertion Resilience");
   const base = "the quick brown fox jumps over the lazy dog and the fox runs around";
   // Inserting 1 word at the beginning
   const modified = "well " + base;
-  const result1 = compareDocuments(base, modified);
-  const result2 = compareDocuments(modified, base);
+  const result1 = await compareDocuments(base, modified);
+  const result2 = await compareDocuments(modified, base);
   assert(
     result1.similarity > 50,
     "Single word insertion still gives high similarity (sliding shingles)",
@@ -217,27 +221,25 @@ console.log("\n📋 SECTION 7: Word Insertion Resilience");
 console.log("\n📋 SECTION 8: Spelling Mistake Detection");
 // ===============================================================
 
-const { detectSpellingMistakes } = require("../src/Services/spellCheckService");
-
 {
-  const mistakes = detectSpellingMistakes("The goverment enviornment recieve benefitts");
+  const mistakes = detectSpellingMistakesSync("The goverment enviornment recieve benefitts");
   assert(mistakes.length >= 2, "Detects known typos in text", `found ${mistakes.length}`);
   const words = mistakes.map(m => m.word.toLowerCase());
   assert(words.includes("goverment"), "Detects 'goverment'");
 }
 
 {
-  const mistakes = detectSpellingMistakes("");
+  const mistakes = detectSpellingMistakesSync("");
   assert(mistakes.length === 0, "Empty text returns no mistakes");
 }
 
 {
-  const mistakes = detectSpellingMistakes(null);
+  const mistakes = detectSpellingMistakesSync(null);
   assert(mistakes.length === 0, "Null input returns no mistakes gracefully");
 }
 
 {
-  const result = compareDocuments(
+  const result = await compareDocuments(
     "The student recieve grammer corrections in every assigment submission",
     "The teacher checks enviroment setup before begining the class"
   );
@@ -253,8 +255,8 @@ console.log("\n📋 SECTION 9: Filter Options");
 {
   const textA = 'This is an "original quoted sentence" that should be excluded from comparison';
   const textB = 'This is an "original quoted sentence" that should be excluded from comparison';
-  const withQuotes = compareDocuments(textA, textB, {});
-  const withoutQuotes = compareDocuments(textA, textB, { excludeQuotes: true });
+  const withQuotes = await compareDocuments(textA, textB, {});
+  const withoutQuotes = await compareDocuments(textA, textB, { excludeQuotes: true });
   assert(withQuotes.similarity === 100, "Same texts with quotes = 100%");
   // After removing quotes, content changes but both docs still match each other
   assert(withoutQuotes.similarity === 100, "After excluding quotes still identical to each other");
@@ -263,7 +265,7 @@ console.log("\n📋 SECTION 9: Filter Options");
 {
   const textA = "Main content here with some overlap\n\nReferences\nSmith J. 2023. Paper title. Journal Name.";
   const textB = "Main content here with some overlap\n\nBibliography\nJones A. 2022. Different paper. Other journal.";
-  const result = compareDocuments(textA, textB, { excludeReferences: true });
+  const result = await compareDocuments(textA, textB, { excludeReferences: true });
   assert(typeof result.similarity === "number", "excludeReferences option does not crash");
 }
 
@@ -275,8 +277,8 @@ console.log("\n📋 SECTION 10: Server-Side Score Validation Logic");
   // Test that compareDocuments is deterministic on the same inputs
   const textA = "consistency test document alpha with specific words for hashing";
   const textB = "consistency test document beta slightly different but sharing some words";
-  const r1 = compareDocuments(textA, textB);
-  const r2 = compareDocuments(textA, textB);
+  const r1 = await compareDocuments(textA, textB);
+  const r2 = await compareDocuments(textA, textB);
   assert(r1.similarity === r2.similarity, "compareDocuments is deterministic (same inputs = same output)");
 }
 
@@ -284,7 +286,7 @@ console.log("\n📋 SECTION 10: Server-Side Score Validation Logic");
   // Verify that the server would override a spoofed 0% submission
   const textA = "The assignment was completed correctly with all required functions implemented";
   const textB = "The assignment was completed correctly with all required functions implemented";
-  const result = compareDocuments(textA, textB);
+  const result = await compareDocuments(textA, textB);
   // Simulate: client sends similarity = 0 but server recalculates
   const spoofedClientScore = 0;
   const serverScore = result.similarity;
@@ -307,3 +309,8 @@ if (failed > 0) {
   console.log("\n🎉 All tests passed!\n");
   process.exit(0);
 }
+
+})().catch(err => {
+  console.error("Test suite error:", err);
+  process.exit(1);
+});

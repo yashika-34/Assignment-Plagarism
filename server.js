@@ -24,6 +24,7 @@ const {
 } = require("./src/Middleware/auth");
 
 const { compareDocuments } = require("./src/Services/plagiarismEngine");
+const { detectSpellingMistakes } = require("./src/Services/spellCheckService");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -571,17 +572,37 @@ app.put("/users/:id", authenticateToken, async (req, res) => {
 // -----------------------------------------
 // AUTHORITATIVE SIMILARITY API
 // -----------------------------------------
-app.post("/api/check-similarity", optionalToken, (req, res) => {
+app.post("/api/check-similarity", optionalToken, async (req, res) => {
   try {
     const { textA, textB, options } = req.body;
     if (typeof textA !== "string" || typeof textB !== "string") {
       return res.status(400).json({ error: "Both textA and textB strings are required" });
     }
 
-    const result = compareDocuments(textA, textB, options || {});
+    const result = await compareDocuments(textA, textB, options || {});
     res.json({
       success: true,
       result: result
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// -----------------------------------------
+// DYNAMIC SPELL CHECK API
+// -----------------------------------------
+app.post("/api/spellcheck", optionalToken, async (req, res) => {
+  try {
+    const { text, docLabel } = req.body;
+    if (typeof text !== "string") {
+      return res.status(400).json({ error: "Text string is required" });
+    }
+
+    const mistakes = await detectSpellingMistakes(text, docLabel || "Document");
+    res.json({
+      success: true,
+      mistakes: mistakes
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -659,7 +680,7 @@ app.post("/reports", optionalToken, async (req, res) => {
     // Authoritative Server-side Score Validation:
     // If textA and textB are present, recompute similarity score and reject/override client spoofing!
     if (typeof reportData.textA === "string" && typeof reportData.textB === "string") {
-      const serverAnalysis = compareDocuments(reportData.textA, reportData.textB, reportData.filters || {});
+      const serverAnalysis = await compareDocuments(reportData.textA, reportData.textB, reportData.filters || {});
       reportData.similarity = serverAnalysis.similarity;
       reportData.coverageA = serverAnalysis.coverageA;
       reportData.coverageB = serverAnalysis.coverageB;

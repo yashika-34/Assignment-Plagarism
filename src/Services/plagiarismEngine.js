@@ -2,7 +2,7 @@
 // Authoritative Server-Side Plagiarism Detection Engine
 // Uses sliding window n-gram shingling, symmetric Jaccard similarity, and directional document coverage.
 
-const { detectSpellingMistakes } = require("./spellCheckService");
+const { detectSpellingMistakes, detectSpellingMistakesSync } = require("./spellCheckService");
 
 /**
  * Filter document text based on options (exclude quotes, references/bibliography).
@@ -205,7 +205,7 @@ function extractCommonPhrases(matchesA) {
  * @param {object} options - { excludeQuotes, excludeReferences, nGramSize }
  * @returns {object}
  */
-function compareDocuments(textA, textB, options = {}) {
+async function compareDocuments(textA, textB, options = {}) {
   const nGramSize = Number(options.nGramSize) || 4;
 
   const rawA = textA || "";
@@ -221,8 +221,8 @@ function compareDocuments(textA, textB, options = {}) {
 
   // Edge cases: either document is empty
   if (tokensA.length === 0 || tokensB.length === 0) {
-    const mistakesA = detectSpellingMistakes(filteredA, "Document 1");
-    const mistakesB = detectSpellingMistakes(filteredB, "Document 2");
+    const mistakesA = await detectSpellingMistakes(filteredA, "Document 1");
+    const mistakesB = await detectSpellingMistakes(filteredB, "Document 2");
 
     return {
       similarity: 0,
@@ -287,8 +287,8 @@ function compareDocuments(textA, textB, options = {}) {
   const commonPhrases = extractCommonPhrases(matchesA);
 
   // 8. Spelling and typo detection
-  const mistakesA = detectSpellingMistakes(filteredA, "Document 1", { peerText: filteredB });
-  const mistakesB = detectSpellingMistakes(filteredB, "Document 2", { peerText: filteredA });
+  const mistakesA = await detectSpellingMistakes(filteredA, "Document 1");
+  const mistakesB = await detectSpellingMistakes(filteredB, "Document 2");
 
   const roundedSim = Math.round(overallSimilarity * 10) / 10;
   const roundedCovA = Math.round(coverageA * 10) / 10;
