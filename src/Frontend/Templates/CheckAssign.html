@@ -616,6 +616,7 @@
         localStorage.removeItem("authToken");
         localStorage.removeItem("loggedIn");
         localStorage.removeItem("userEmail");
+        sessionStorage.clear();
         window.location.href = "../Templates/index.html";
       });
     });

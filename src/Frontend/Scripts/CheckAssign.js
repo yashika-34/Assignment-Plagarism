@@ -1229,6 +1229,7 @@ async function compareTwoDocuments(fileA, fileB, textA, textB, filterOptions) {
 
   const reportObj = {
     id: "REP-" + Date.now().toString(36).toUpperCase() + "-" + Math.floor(100 + Math.random() * 900),
+    email: (localStorage.getItem("userEmail") || "").toLowerCase().trim(),
     filenames: [fileA.name, fileB.name],
     files: [fileA.name, fileB.name],
     similarity: score,
@@ -1911,6 +1912,8 @@ async function displayResults(
   --------------------------------------------- */
 
   const result = {
+
+    email: (email || localStorage.getItem("userEmail") || "").toLowerCase().trim(),
 
     filenames: [
       fileA.name,
@@ -2894,6 +2897,7 @@ function handleLogout() {
   localStorage.removeItem("authToken");
   localStorage.removeItem("loggedIn");
   localStorage.removeItem("userEmail");
+  sessionStorage.clear();
   window.location.href = "index.html";
 }
 if (logoutBtn) logoutBtn.addEventListener("click", handleLogout);

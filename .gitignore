@@ -20,6 +20,7 @@ src/Backend/*
 src/Frontend/Scripts/*
 !src/Frontend/Scripts/.gitkeep
 !src/Frontend/Scripts/CheckAssign.js
+!src/Frontend/Scripts/HomeBackend.js
 !src/Frontend/Scripts/HomeDesign.js
 !src/Frontend/Scripts/Homesignup.js
 !src/Frontend/Scripts/history.js

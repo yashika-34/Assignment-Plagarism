@@ -502,22 +502,29 @@ function getSavedReports(resultData, fileData) {
             return;
         }
 
+        // Ownership check: If report defines an email, it MUST match the current logged-in user
+        const currentEmail = getCurrentEmail().toLowerCase();
+        const reportEmail = (report.email || report.userEmail || "").trim().toLowerCase();
+        if (currentEmail && reportEmail && reportEmail !== currentEmail) {
+            return;
+        }
 
         const id =
             report.id ??
             report.reportId ??
+            report.customId ??
             "";
 
-
         const filenames =
-            Array.isArray(report.filenames)
+            Array.isArray(report.filenames) && report.filenames.length > 0
                 ? report.filenames.join("|")
-                : safeText(
-                    report.filename ||
-                    report.fileName ||
-                    ""
-                );
-
+                : Array.isArray(report.files) && report.files.length > 0
+                    ? report.files.join("|")
+                    : safeText(
+                        report.filename ||
+                        report.fileName ||
+                        ""
+                    );
 
         const score =
             report.roundedscore ??
@@ -527,7 +534,6 @@ function getSavedReports(resultData, fileData) {
             report.similarityScore ??
             "";
 
-
         const date =
             report.createdAt ??
             report.created_at ??
@@ -536,21 +542,13 @@ function getSavedReports(resultData, fileData) {
             report.uploadedAt ??
             "";
 
-
-        const key =
-            String(id) +
-            "|" +
-            filenames +
-            "|" +
-            String(score) +
-            "|" +
-            String(date);
-
+        const key = id
+            ? String(id)
+            : filenames + "|" + String(score) + "|" + String(date);
 
         if (keys.has(key)) {
             return;
         }
-
 
         keys.add(key);
 
@@ -855,13 +853,13 @@ function getSavedReports(resultData, fileData) {
 
     if (reports.length === 0) {
 
+        const currentEmail = getCurrentEmail().toLowerCase();
         const sessionKeys = [
             "assignCheckReport",
             "lastAnalysisResult",
             "reportData",
             "selectedReport"
         ];
-
 
         sessionKeys.forEach(function (key) {
 
@@ -877,17 +875,26 @@ function getSavedReports(resultData, fileData) {
                 const parsed =
                     JSON.parse(raw);
 
+                const checkAndAdd = function (item) {
+                    if (!item || typeof item !== "object") return;
+                    const itemEmail = (item.email || item.userEmail || "").trim().toLowerCase();
+                    // If user is logged in, only allow session reports belonging to this user
+                    if (currentEmail) {
+                        if (itemEmail === currentEmail) {
+                            addReport(item);
+                        } else {
+                            // Stale report from previous user or anonymous session — clean up
+                            sessionStorage.removeItem(key);
+                        }
+                    } else {
+                        addReport(item);
+                    }
+                };
 
                 if (Array.isArray(parsed)) {
-
-                    parsed.forEach(
-                        addReport
-                    );
-
+                    parsed.forEach(checkAndAdd);
                 } else {
-
-                    addReport(parsed);
-
+                    checkAndAdd(parsed);
                 }
 
             } catch (error) {
@@ -1633,26 +1640,7 @@ function setupLogout() {
             );
 
 
-            sessionStorage.removeItem(
-                "assignCheckReport"
-            );
-
-            sessionStorage.removeItem(
-                "selectedReport"
-            );
-
-            sessionStorage.removeItem(
-                "selectedReportId"
-            );
-
-            sessionStorage.removeItem(
-                "viewReport"
-            );
-
-            sessionStorage.removeItem(
-                "showsthedisplayornot"
-            );
-
+            sessionStorage.clear();
 
             window.location.href =
                 "../Templates/index.html";

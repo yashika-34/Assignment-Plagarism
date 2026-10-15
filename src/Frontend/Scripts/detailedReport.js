@@ -152,12 +152,18 @@ async function loadAndRenderReport() {
     }
   }
 
+  const loggedInEmail = (localStorage.getItem("userEmail") || "").toLowerCase().trim();
+
   // 2. Try sessionStorage "reportData"
   if (!report) {
     try {
       const stored = sessionStorage.getItem("reportData");
       if (stored) {
-        report = JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        const reportEmail = (parsed.email || parsed.userEmail || "").toLowerCase().trim();
+        if (!loggedInEmail || !reportEmail || reportEmail === loggedInEmail) {
+          report = parsed;
+        }
       }
     } catch (e) {
       console.warn("Session reportData error:", e);
@@ -169,7 +175,11 @@ async function loadAndRenderReport() {
     try {
       const lastRes = sessionStorage.getItem("lastAnalysisResult");
       if (lastRes) {
-        report = JSON.parse(lastRes);
+        const parsed = JSON.parse(lastRes);
+        const reportEmail = (parsed.email || parsed.userEmail || "").toLowerCase().trim();
+        if (!loggedInEmail || !reportEmail || reportEmail === loggedInEmail) {
+          report = parsed;
+        }
       }
     } catch (e) {
       console.warn("Session lastAnalysisResult error:", e);
