@@ -1257,12 +1257,47 @@ async function compareTwoDocuments(fileA, fileB, textA, textB, filterOptions) {
     date: new Date().toISOString()
   };
 
-  // Background save to reports DB (includes textA/textB so server can recalculate score)
+  // Background save to reports DB and filedata (uploaded files storage)
   try {
     const email = localStorage.getItem("userEmail");
     const token = localStorage.getItem("authToken");
     const reportHeaders = { "Content-Type": "application/json" };
     if (token) reportHeaders["Authorization"] = `Bearer ${token}`;
+
+    // Save file metadata to /filedata so profile shows uploaded files + last upload date
+    if (email && token) {
+      const filesMeta = [fileA, fileB].map(f => ({
+        filename: f.name,
+        filesize: f.size || 0,
+        uploadedAt: new Date().toISOString()
+      }));
+
+      // Fetch existing filedata record then upsert
+      fetch(`${API_BASE}/filedata`, { headers: reportHeaders })
+        .then(r => r.ok ? r.json() : [])
+        .then(existing => {
+          const records = Array.isArray(existing) ? existing : [];
+          if (records.length > 0) {
+            // Update existing record by appending new files
+            const record = records[0];
+            const current = Array.isArray(record.filedetails) ? record.filedetails : [];
+            return fetch(`${API_BASE}/filedata/${record.id}`, {
+              method: "PUT",
+              headers: reportHeaders,
+              body: JSON.stringify({ filedetails: [...current, ...filesMeta] })
+            });
+          } else {
+            // Create new filedata record
+            return fetch(`${API_BASE}/filedata`, {
+              method: "POST",
+              headers: reportHeaders,
+              body: JSON.stringify({ email, filedetails: filesMeta })
+            });
+          }
+        })
+        .catch(e => console.warn("Filedata save notice:", e));
+    }
+
     if (email) {
       fetch(`${API_BASE}/reports`, {
         method: "POST",
@@ -2158,7 +2193,8 @@ async function displayResults(
 
               headers: {
                 "Content-Type":
-                  "application/json"
+                  "application/json",
+                ..._authHdr
               },
 
               body:

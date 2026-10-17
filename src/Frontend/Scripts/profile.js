@@ -931,7 +931,6 @@ function calculateFileStats(files) {
             0
         );
 
-
         const dateValue =
             file?.uploadedAt ||
             file?.createdAt ||
@@ -944,18 +943,12 @@ function calculateFileStats(files) {
         }
 
 
-        const date =
-            new Date(dateValue);
-
+        const date = new Date(dateValue);
 
         if (
             !isNaN(date.getTime()) &&
-            (
-                !latestDate ||
-                date > latestDate
-            )
+            (!latestDate || date > latestDate)
         ) {
-
             latestDate = date;
         }
 
@@ -986,33 +979,56 @@ function updateStatistics(
 
 
     /*
-       FILE COUNT
+       FILE COUNT — fallback to unique filenames from reports if no filedata
     */
 
-    if (totalFilesEl) {
+    let displayCount = stats.count;
 
-        totalFilesEl.textContent =
-            String(stats.count);
+    if (displayCount === 0 && Array.isArray(results)) {
+        const uniqueFiles = new Set();
+        results.forEach(function (record) {
+            const addFiles = function (item) {
+                if (!item) return;
+                if (Array.isArray(item.files)) item.files.forEach(f => f && uniqueFiles.add(f));
+                if (Array.isArray(item.filenames)) item.filenames.forEach(f => f && uniqueFiles.add(f));
+            };
+            addFiles(record);
+            if (Array.isArray(record.filesprocesed)) record.filesprocesed.forEach(addFiles);
+        });
+        displayCount = uniqueFiles.size;
     }
 
+    if (totalFilesEl) {
+        totalFilesEl.textContent = String(displayCount);
+    }
 
     if (fileCountEl) {
-
-        fileCountEl.textContent =
-            String(stats.count);
+        fileCountEl.textContent = String(displayCount);
     }
 
 
     /*
-       STORAGE
+       STORAGE — fallback to text content size from reports when no file sizes stored
     */
 
-    if (totalSizeEl) {
+    let displaySize = stats.size;
 
-        totalSizeEl.textContent =
-            formatBytes(
-                stats.size
-            );
+    if (displaySize === 0 && Array.isArray(results)) {
+        // Files are processed client-side; sizes aren't stored for existing records.
+        // Estimate from the textA + textB content stored in each report instead.
+        results.forEach(function (record) {
+            const addTextSize = function (item) {
+                if (!item || typeof item !== "object") return;
+                displaySize += (item.textA ? item.textA.length : 0);
+                displaySize += (item.textB ? item.textB.length : 0);
+            };
+            addTextSize(record);
+            if (Array.isArray(record.filesprocesed)) record.filesprocesed.forEach(addTextSize);
+        });
+    }
+
+    if (totalSizeEl) {
+        totalSizeEl.textContent = formatBytes(displaySize);
     }
 
 
@@ -1053,27 +1069,37 @@ function updateStatistics(
 
 
     /*
-       LAST UPLOAD
+       LAST UPLOAD — also check report dates as fallback
     */
 
     if (lastUploadEl) {
 
-        if (stats.latestDate) {
+        let displayDate = stats.latestDate;
 
-            lastUploadEl.textContent =
-                formatDate(
-                    stats.latestDate
-                );
+        // Fallback: if no file dates, check analysis/report dates
+        if (!displayDate && Array.isArray(results)) {
+            results.forEach(function (record) {
+                // Handle both direct reports and nested structures
+                const checkDate = function (item) {
+                    if (!item || typeof item !== "object") return;
+                    const d = new Date(
+                        item.date || item.createdAt || item.timestamp || ""
+                    );
+                    if (!isNaN(d.getTime()) && (!displayDate || d > displayDate)) {
+                        displayDate = d;
+                    }
+                };
+                checkDate(record);
+                if (Array.isArray(record.filesprocesed)) record.filesprocesed.forEach(checkDate);
+            });
+        }
 
+        if (displayDate) {
+            lastUploadEl.textContent = formatDate(displayDate);
         } else if (files.length > 0) {
-
-            lastUploadEl.textContent =
-                "Recently";
-
+            lastUploadEl.textContent = "Recently";
         } else {
-
-            lastUploadEl.textContent =
-                "—";
+            lastUploadEl.textContent = "—";
         }
     }
 }
@@ -1238,55 +1264,41 @@ function renderFiles(files) {
             file?.timestamp;
 
 
-        const card =
+        const item =
             document.createElement(
                 "div"
             );
 
 
-        card.className =
-            "profile-file-item";
+        // Use CSS classes that match profile.html styles
+        item.className = "file-item";
 
 
-        card.innerHTML = `
+        item.innerHTML = `
 
-            <div class="profile-file-icon ${type.className}">
+            <div class="file-icon">
                 ${type.label}
             </div>
 
-            <div class="profile-file-info">
+            <div class="file-info">
 
-                <div class="profile-file-name">
+                <div class="file-name">
                     ${escapeHTML(filename)}
                 </div>
 
-                <div class="profile-file-meta">
-
-                    ${type.label}
-
-                    ${
-                        filesize
-                            ? " • " +
-                              formatBytes(filesize)
-                            : ""
-                    }
-
-                    ${
-                        fileDate
-                            ? " • " +
-                              formatDate(fileDate)
-                            : ""
-                    }
-
+                <div class="file-meta">
+                    ${type.label}${filesize ? " &bull; " + formatBytes(filesize) : ""}
                 </div>
 
             </div>
+
+            ${fileDate ? `<div class="file-date">${formatDate(fileDate)}</div>` : ""}
 
         `;
 
 
         fileListEl.appendChild(
-            card
+            item
         );
 
     });
@@ -1769,11 +1781,33 @@ async function loadProfile() {
 
         /*
            FILE LIST
+           Fallback: if no /filedata records, build file list from reports
         */
 
-        renderFiles(
-            profileFiles
-        );
+        let filesToRender = profileFiles;
+
+        if (filesToRender.length === 0 && Array.isArray(resultData)) {
+            const fileMap = {};
+            const processItem = function (item) {
+                if (!item || typeof item !== "object") return;
+                const date = item.date || item.createdAt || item.timestamp || "";
+                const addName = function (name) {
+                    if (!name) return;
+                    if (!fileMap[name] || (date && date > (fileMap[name].uploadedAt || ""))) {
+                        fileMap[name] = { filename: name, filesize: 0, uploadedAt: date };
+                    }
+                };
+                if (Array.isArray(item.files)) item.files.forEach(addName);
+                if (Array.isArray(item.filenames)) item.filenames.forEach(addName);
+            };
+            resultData.forEach(function (record) {
+                processItem(record);
+                if (Array.isArray(record.filesprocesed)) record.filesprocesed.forEach(processItem);
+            });
+            filesToRender = Object.values(fileMap);
+        }
+
+        renderFiles(filesToRender);
 
 
         /*
