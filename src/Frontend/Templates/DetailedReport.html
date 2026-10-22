@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Detailed Analysis Report — AssignCheck</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%234f46e5'/></svg>">
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -92,6 +93,22 @@
       </div>
 
       <div class="metric-card">
+        <div class="metric-icon matching">✨</div>
+        <div class="metric-data">
+          <h4 id="cardMatchingVal">0</h4>
+          <p>Matching Sections</p>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-icon different">🔍</div>
+        <div class="metric-data">
+          <h4 id="cardDifferentVal">0</h4>
+          <p>Different Sections</p>
+        </div>
+      </div>
+
+      <div class="metric-card">
         <div class="metric-icon phrases">📑</div>
         <div class="metric-data">
           <h4 id="cardPhrasesVal">0</h4>
@@ -111,7 +128,7 @@
         <div class="metric-icon words">📊</div>
         <div class="metric-data">
           <h4 id="cardWordsVal">0</h4>
-          <p>Total Words Compared</p>
+          <p>Total Words</p>
         </div>
       </div>
     </section>
@@ -119,7 +136,11 @@
     <!-- TABS BAR -->
     <nav class="tabs-bar">
       <button class="tab-btn active" data-tab="tab-highlight">
-        <span>📑 Highlighted Text Comparison</span>
+        <span>📑 Highlighted Comparison</span>
+      </button>
+      <button class="tab-btn" data-tab="tab-sections">
+        <span>📑 All Sections (Matching & Diff)</span>
+        <span class="tab-badge" id="tabSectionsCount">0</span>
       </button>
       <button class="tab-btn" data-tab="tab-phrases">
         <span>🔗 Common Phrases</span>
@@ -147,6 +168,10 @@
             <span>Common / Similar Phrase</span>
           </div>
           <div class="legend-item">
+            <span class="legend-dot diff"></span>
+            <span>Different / Unique Section</span>
+          </div>
+          <div class="legend-item">
             <span class="legend-dot typo"></span>
             <span>Spelling Mistake (hover to see suggestion)</span>
           </div>
@@ -156,6 +181,10 @@
           <label class="toggle-label">
             <input type="checkbox" id="toggleMatches" checked />
             Show Similarities
+          </label>
+          <label class="toggle-label">
+            <input type="checkbox" id="toggleDiffs" checked />
+            Show Differences
           </label>
           <label class="toggle-label">
             <input type="checkbox" id="toggleTypos" checked />
@@ -191,6 +220,35 @@
           </div>
           <div class="doc-body" id="docBBody">
             <p>Loading document content...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================
+         TAB: ALL SECTIONS (MATCHING & DIFFERENT)
+         ======================================================== -->
+    <div class="tab-pane" id="tab-sections">
+      <div class="sections-container">
+        <div class="sections-toolbar">
+          <div class="sections-filter-group">
+            <span style="font-weight:700;font-size:13px;color:var(--ink);margin-right:6px;">Filter:</span>
+            <button type="button" class="filter-pill active" data-filter="all" id="filterAllSections">
+              All Sections (<span id="countFilterAll">0</span>)
+            </button>
+            <button type="button" class="filter-pill" data-filter="matching" id="filterMatchingSections">
+              ✨ Matching (<span id="countFilterMatching">0</span>)
+            </button>
+            <button type="button" class="filter-pill" data-filter="different" id="filterDifferentSections">
+              🔍 Different / Unique (<span id="countFilterDifferent">0</span>)
+            </button>
+          </div>
+          <input type="text" class="sections-search" id="sectionsSearch" placeholder="Search section text..." />
+        </div>
+
+        <div class="sections-grid" id="sectionsGrid">
+          <div class="empty-state">
+            <p>Scanning sections...</p>
           </div>
         </div>
       </div>

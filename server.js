@@ -35,10 +35,14 @@ app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
-// Serve frontend static assets
-app.use(express.static(path.join(__dirname, "src/Frontend")));
-app.use(express.static(path.join(__dirname, "src")));
-app.use(express.static(path.join(__dirname, "src/Frontend/Templates")));
+// Serve frontend static assets with cache headers
+const staticOptions = {
+  maxAge: "1h",
+  etag: true
+};
+app.use(express.static(path.join(__dirname, "src/Frontend"), staticOptions));
+app.use(express.static(path.join(__dirname, "src"), staticOptions));
+app.use(express.static(path.join(__dirname, "src/Frontend/Templates"), staticOptions));
 
 // Root URL → redirect to the homepage
 app.get("/", (req, res) => {
@@ -70,9 +74,9 @@ const authLimiter = rateLimit({
 // 1. User Schema
 const userSchema = new mongoose.Schema(
   {
-    customId: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
+    customId: { type: String, default: () => new mongoose.Types.ObjectId().toString(), index: true },
     name: { type: String, required: true },
-    email: { type: String, required: true, lowercase: true, trim: true },
+    email: { type: String, required: true, lowercase: true, trim: true, index: true },
     password: { type: String, required: true },
     role: { type: String, enum: ["student", "teacher", "admin"], default: "student" },
     resetToken: { type: String, default: null },
@@ -91,8 +95,8 @@ const User = mongoose.model("User", userSchema);
 // 2. Report Schema
 const reportSchema = new mongoose.Schema(
   {
-    customId: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
-    email: { type: String, required: true, lowercase: true, trim: true },
+    customId: { type: String, default: () => new mongoose.Types.ObjectId().toString(), index: true },
+    email: { type: String, required: true, lowercase: true, trim: true, index: true },
     files: [{ type: String }],
     type: { type: String, default: "student" },
     similarity: { type: Number, default: 0 },
@@ -103,7 +107,7 @@ const reportSchema = new mongoose.Schema(
     differentSections: { type: Number, default: 0 },
     matchingPhrases: { type: Number, default: 0 },
     spellingMistakes: { type: Number, default: 0 },
-    date: { type: Date, default: Date.now },
+    date: { type: Date, default: Date.now, index: -1 },
     textA: { type: String, default: "" },
     textB: { type: String, default: "" },
     filefirstmatches: { type: Array, default: [] },
@@ -120,6 +124,8 @@ const reportSchema = new mongoose.Schema(
   { toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
 
+reportSchema.index({ email: 1, date: -1 });
+
 reportSchema.virtual("id").get(function () {
   return this.customId || this._id.toString();
 });
@@ -129,8 +135,8 @@ const Report = mongoose.model("Report", reportSchema);
 // 3. FileData Schema
 const fileDataSchema = new mongoose.Schema(
   {
-    customId: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
-    email: { type: String, required: true, lowercase: true, trim: true },
+    customId: { type: String, default: () => new mongoose.Types.ObjectId().toString(), index: true },
+    email: { type: String, required: true, lowercase: true, trim: true, index: true },
     filedetails: { type: Array, default: [] }
   },
   { toJSON: { virtuals: true }, toObject: { virtuals: true } }
@@ -145,8 +151,8 @@ const FileData = mongoose.model("FileData", fileDataSchema);
 // 4. FileResult Schema
 const fileResultSchema = new mongoose.Schema(
   {
-    customId: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
-    email: { type: String, required: true, lowercase: true, trim: true },
+    customId: { type: String, default: () => new mongoose.Types.ObjectId().toString(), index: true },
+    email: { type: String, required: true, lowercase: true, trim: true, index: true },
     filesprocesed: { type: Array, default: [] }
   },
   { toJSON: { virtuals: true }, toObject: { virtuals: true } }
@@ -503,7 +509,7 @@ app.get("/users", authenticateToken, async (req, res) => {
       query.email = req.query.email.toLowerCase().trim();
     }
 
-    const users = await User.find(query).select("-password -resetToken -resetTokenExpiry");
+    const users = await User.find(query).select("-password -resetToken -resetTokenExpiry").lean();
     res.json(users.map(formatDoc));
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -627,7 +633,7 @@ app.get("/reports", authenticateToken, async (req, res) => {
       }
     }
 
-    const reports = await Report.find(query).sort({ date: -1 });
+    const reports = await Report.find(query).sort({ date: -1 }).lean();
     res.json(reports.map(formatDoc));
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -743,7 +749,7 @@ app.get("/filedata", authenticateToken, async (req, res) => {
       query.email = req.query.email.toLowerCase().trim();
     }
 
-    const data = await FileData.find(query);
+    const data = await FileData.find(query).lean();
     res.json(data.map(formatDoc));
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -798,8 +804,36 @@ app.get("/fileresult", authenticateToken, async (req, res) => {
       query.email = req.query.email.toLowerCase().trim();
     }
 
-    const data = await FileResult.find(query);
+    const data = await FileResult.find(query).lean();
     res.json(data.map(formatDoc));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// -----------------------------------------
+// UNIFIED PROFILE SUMMARY (Single ultra-fast round-trip for Profile page <50ms)
+// -----------------------------------------
+app.get("/api/user-profile-summary", authenticateToken, async (req, res) => {
+  try {
+    const email = (req.query.email && req.user.role !== "student")
+      ? req.query.email.toLowerCase().trim()
+      : req.user.email.toLowerCase();
+
+    const [user, fileData, reports, fileResult] = await Promise.all([
+      User.findOne({ email }).select("-password -resetToken -resetTokenExpiry").lean(),
+      FileData.findOne({ email }).lean(),
+      Report.find({ email }).sort({ date: -1 }).lean(),
+      FileResult.findOne({ email }).lean()
+    ]);
+
+    res.json({
+      success: true,
+      user: formatDoc(user),
+      fileData: formatDoc(fileData),
+      reports: (reports || []).map(formatDoc),
+      fileResult: formatDoc(fileResult)
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

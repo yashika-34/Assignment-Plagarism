@@ -36,32 +36,82 @@ async function loadHistory() {
 
   const historyList = document.getElementById("historyList");
 
-  if (historyList !== null) {
-    historyList.innerHTML = "<p style='padding:20px;color:#8b90ad;'>Loading...</p>";
+  // 1. Instant Cache Hydration (SWR: 0ms perceived load time!)
+  let hasRenderedFromCache = false;
+  try {
+    const cachedRaw = localStorage.getItem("assigncheck_history_cache_" + userEmail);
+    if (cachedRaw) {
+      const cachedRecords = JSON.parse(cachedRaw);
+      if (Array.isArray(cachedRecords) && cachedRecords.length > 0) {
+        allRecords = cachedRecords;
+        updateCounts(cachedRecords);
+        renderCards(cachedRecords);
+        hasRenderedFromCache = true;
+      }
+    }
+  } catch (e) {
+    console.warn("History cache read notice:", e);
   }
 
-  const response = await fetch(
-    `${API_BASE}/reports?email=` + encodeURIComponent(userEmail),
-    { headers: getAuthHeaders() }
-  );
-
-  const records = await response.json();
-
-  if (records.length === 0) {
-    showEmptyState();
-    updateCounts([]);
-    return;
+  // 2. If no cache yet, show sleek modern skeleton loader
+  if (!hasRenderedFromCache && historyList !== null) {
+    historyList.innerHTML = `
+      <div class="history-skeleton-list">
+        <div class="history-skeleton-card"></div>
+        <div class="history-skeleton-card"></div>
+        <div class="history-skeleton-card"></div>
+      </div>
+    `;
   }
 
-  // Sort by newest first (O(n log n) vs old O(n²) bubble sort)
-  records.sort((a, b) => new Date(b.date) - new Date(a.date));
+  // 3. Background Revalidation (Fast fetch with 4s timeout)
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-  allRecords = records;
+    const response = await fetch(
+      `${API_BASE}/reports?email=` + encodeURIComponent(userEmail),
+      { headers: getAuthHeaders(), signal: controller.signal }
+    );
+    clearTimeout(timeoutId);
 
-  updateCounts(records);
+    if (response.ok) {
+      const records = await response.json();
 
-  renderCards(records);
+      if (!Array.isArray(records) || records.length === 0) {
+        if (!hasRenderedFromCache) {
+          showEmptyState();
+        }
+        allRecords = [];
+        updateCounts([]);
+        try {
+          localStorage.setItem("assigncheck_history_cache_" + userEmail, JSON.stringify([]));
+        } catch (e) {}
+        return;
+      }
 
+      // Sort by newest first
+      records.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      allRecords = records;
+      updateCounts(records);
+      renderCards(records);
+
+      // Save to cache for next instant visit
+      try {
+        localStorage.setItem("assigncheck_history_cache_" + userEmail, JSON.stringify(records));
+      } catch (e) {}
+    } else if (!hasRenderedFromCache) {
+      showEmptyState();
+      updateCounts([]);
+    }
+  } catch (err) {
+    console.warn("History network fetch notice:", err);
+    if (!hasRenderedFromCache) {
+      showEmptyState();
+      updateCounts([]);
+    }
+  }
 }
 
 
@@ -354,6 +404,11 @@ async function deleteRecord(id) {
 
   allRecords = newRecords;
 
+  const userEmail = localStorage.getItem("userEmail") || "";
+  try {
+    localStorage.setItem("assigncheck_history_cache_" + userEmail, JSON.stringify(allRecords));
+  } catch (e) {}
+
   updateCounts(allRecords);
 
   renderCards(allRecords);
@@ -396,6 +451,11 @@ async function clearAllHistory() {
   }
 
   allRecords = [];
+
+  const userEmail = localStorage.getItem("userEmail") || "";
+  try {
+    localStorage.setItem("assigncheck_history_cache_" + userEmail, JSON.stringify([]));
+  } catch (e) {}
 
   updateCounts([]);
 

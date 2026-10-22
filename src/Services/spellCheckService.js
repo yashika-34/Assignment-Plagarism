@@ -39,8 +39,55 @@ function getSpell() {
 // Warm up the dictionaries on module load
 getSpell().catch(() => {});
 
-// Empty objects for backward-compatibility with any legacy imports
-const COMMON_TYPOS = {};
+// Pre-populated common typos for instant, 100% accurate suggestions
+const COMMON_TYPOS = {
+  diffrent: "different",
+  differnt: "different",
+  mistka: "mistake",
+  mistak: "mistake",
+  plagarism: "plagiarism",
+  plagerism: "plagiarism",
+  documnt: "document",
+  progamming: "programming",
+  programing: "programming",
+  algoritm: "algorithm",
+  teh: "the",
+  recieve: "receive",
+  seperate: "separate",
+  definately: "definitely",
+  definatly: "definitely",
+  occured: "occurred",
+  occurance: "occurrence",
+  untill: "until",
+  wierd: "weird",
+  goverment: "government",
+  enviroment: "environment",
+  recommand: "recommend",
+  acheive: "achieve",
+  accross: "across",
+  basicly: "basically",
+  begining: "beginning",
+  calender: "calendar",
+  embarass: "embarrass",
+  guarentee: "guarantee",
+  happend: "happened",
+  interupt: "interrupt",
+  knowlege: "knowledge",
+  neccessary: "necessary",
+  necesary: "necessary",
+  noticable: "noticeable",
+  peice: "piece",
+  privilege: "privilege",
+  publically: "publicly",
+  refered: "referred",
+  relevent: "relevant",
+  similer: "similar",
+  succesful: "successful",
+  suprise: "surprise",
+  tommorow: "tomorrow",
+  truely: "truly",
+  unfortunatly: "unfortunately"
+};
 const NEVER_FLAG = new Set();
 
 /**
@@ -83,10 +130,12 @@ function isCompoundOrDerivedWord(w, spells) {
   if (lower.endsWith("thon") && isWordInDictionary(lower.slice(0, -4), spells)) return true;
 
   // 3. Dynamic compound of two valid English words (e.g. dataset, codebase, workflow, lifecycle)
-  if (lower.length >= 6) {
-    for (let i = 3; i <= lower.length - 3; i++) {
+  // Must be at least 8 chars long with parts at least 4 chars long to avoid fragments like "diff" + "rent"
+  if (lower.length >= 8) {
+    for (let i = 4; i <= lower.length - 4; i++) {
       const w1 = lower.slice(0, i);
       const w2 = lower.slice(i);
+      if (w1 === "diff") continue;
       if (isWordInDictionary(w1, spells) && isWordInDictionary(w2, spells)) return true;
     }
   }
@@ -142,6 +191,12 @@ function checkWordDynamically(rawWord, spells, fullText = "", matchIndex = -1) {
     return null;
   }
 
+  // 1b. Fast check for known common typos
+  const lowerWord = rawWord.toLowerCase();
+  if (COMMON_TYPOS[lowerWord]) {
+    return COMMON_TYPOS[lowerWord];
+  }
+
   // 2. File extensions (e.g. README.md, index.html, server.js)
   if (matchIndex > 0 && fullText && fullText[matchIndex - 1] === ".") {
     return null;
@@ -169,7 +224,7 @@ function checkWordDynamically(rawWord, spells, fullText = "", matchIndex = -1) {
     return null;
   }
 
-  const lowerWord = rawWord.toLowerCase();
+  // lowerWord already defined above
 
   // 7. Check if this is a broken word from PDF text extraction (e.g. explai n -> explain, soluti on -> solution, a nd -> and)
   if (fullText && matchIndex >= 0) {

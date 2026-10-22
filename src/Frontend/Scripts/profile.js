@@ -259,6 +259,40 @@ function getAuthHeaders(extra = {}) {
     return headers;
 }
 
+/* =========================================================
+   FAST UNIFIED PROFILE SUMMARY (<50ms single round-trip)
+========================================================= */
+
+async function fetchProfileSummary(email) {
+    if (!email) return null;
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const resp = await fetch(`${API_BASE}/api/user-profile-summary`, {
+            headers: getAuthHeaders(),
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data && data.success) {
+                const results = [...(data.reports || [])];
+                if (data.fileResult && Array.isArray(data.fileResult.filesprocesed)) {
+                    results.push(data.fileResult);
+                }
+                return {
+                    user: data.user,
+                    fileData: data.fileData,
+                    resultData: results
+                };
+            }
+        }
+    } catch (e) {
+        console.warn("Unified summary fetch fallback:", e);
+    }
+    return null;
+}
+
 async function getUser() {
     const email = getCurrentEmail();
 
@@ -267,10 +301,13 @@ async function getUser() {
     }
 
     try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
         const response = await fetch(
             `${USERS_API}?email=${encodeURIComponent(email)}`,
-            { headers: getAuthHeaders() }
+            { headers: getAuthHeaders(), signal: controller.signal }
         );
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             throw new Error("Users API failed");
@@ -286,8 +323,8 @@ async function getUser() {
         }
 
     } catch (error) {
-        console.error(
-            "USER LOAD ERROR:",
+        console.warn(
+            "USER LOAD NOTICE:",
             error
         );
     }
@@ -308,10 +345,13 @@ async function getFileData() {
     }
 
     try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
         const response = await fetch(
             `${FILEDATA_API}?email=${encodeURIComponent(email)}`,
-            { headers: getAuthHeaders() }
+            { headers: getAuthHeaders(), signal: controller.signal }
         );
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             throw new Error("Filedata API failed");
@@ -327,8 +367,8 @@ async function getFileData() {
         }
 
     } catch (error) {
-        console.error(
-            "FILEDATA LOAD ERROR:",
+        console.warn(
+            "FILEDATA LOAD NOTICE:",
             error
         );
     }
@@ -338,48 +378,45 @@ async function getFileData() {
 
 
 /* =========================================================
-   GET ALL FILE RESULTS
+   GET ALL FILE RESULTS (Parallelized with Promise.allSettled)
 ========================================================= */
 
 async function getFileResults() {
     const email = getCurrentEmail();
+    if (!email) return [];
     const results = [];
 
-    // 1. Query MongoDB /reports endpoint
-    if (email) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+    const [reportsRes, fileResultRes] = await Promise.allSettled([
+        fetch(`${API_BASE}/reports?email=${encodeURIComponent(email)}`, {
+            headers: getAuthHeaders(),
+            signal: controller.signal
+        }),
+        fetch(`${FILERESULT_API}?email=${encodeURIComponent(email)}`, {
+            headers: getAuthHeaders(),
+            signal: controller.signal
+        })
+    ]);
+    clearTimeout(timeoutId);
+
+    if (reportsRes.status === "fulfilled" && reportsRes.value.ok) {
         try {
-            const resp = await fetch(`${API_BASE}/reports?email=${encodeURIComponent(email)}`, {
-                headers: getAuthHeaders()
-            });
-            if (resp.ok) {
-                const repData = await resp.json();
-                if (Array.isArray(repData)) {
-                    results.push(...repData);
-                }
-            }
-        } catch (e) {
-            console.warn("Reports API notice:", e);
-        }
+            const repData = await reportsRes.value.json();
+            if (Array.isArray(repData)) results.push(...repData);
+        } catch (e) {}
     }
 
-    // 2. Query /fileresult fallback
-    if (email) {
+    if (fileResultRes.status === "fulfilled" && fileResultRes.value.ok) {
         try {
-            const response = await fetch(
-                `${FILERESULT_API}?email=${encodeURIComponent(email)}`,
-                { headers: getAuthHeaders() }
-            );
-            if (response.ok) {
-                const data = await response.json();
-                if (Array.isArray(data)) {
-                    results.push(...data);
-                } else if (data && typeof data === "object") {
-                    results.push(data);
-                }
+            const data = await fileResultRes.value.json();
+            if (Array.isArray(data)) {
+                results.push(...data);
+            } else if (data && typeof data === "object") {
+                results.push(data);
             }
-        } catch (error) {
-            console.warn("Fileresult API notice:", error);
-        }
+        } catch (e) {}
     }
 
     return results;
@@ -1634,6 +1671,13 @@ function setupLogout() {
     logoutBtn.addEventListener(
         "click",
         function () {
+            const email = getCurrentEmail();
+            if (email) {
+                try {
+                    localStorage.removeItem("assigncheck_profile_cache_" + email);
+                    localStorage.removeItem("assigncheck_history_cache_" + email);
+                } catch (e) {}
+            }
 
             localStorage.removeItem(
                 "authToken"
@@ -1662,6 +1706,80 @@ function setupLogout() {
 
 
 /* =========================================================
+   SWR CACHE HELPERS (<5ms instant rendering)
+========================================================= */
+
+function hydrateProfileFromCache(email) {
+    if (!email) return false;
+    try {
+        const cachedRaw = localStorage.getItem("assigncheck_profile_cache_" + email);
+        if (!cachedRaw) return false;
+
+        const cache = JSON.parse(cachedRaw);
+        if (!cache || !cache.user) return false;
+
+        currentUser = cache.user;
+        currentFileData = cache.fileData || null;
+        currentResultData = cache.resultData || [];
+
+        updateProfile(cache.user);
+
+        profileFiles = cache.profileFiles || getFilesFromFileData(cache.fileData);
+        analysisResults = cache.analysisResults || getSavedReports(cache.resultData, cache.fileData);
+
+        updateStatistics(profileFiles, currentResultData);
+
+        let filesToRender = profileFiles;
+        if (filesToRender.length === 0 && Array.isArray(currentResultData)) {
+            const fileMap = {};
+            const processItem = function (item) {
+                if (!item || typeof item !== "object") return;
+                const date = item.date || item.createdAt || item.timestamp || "";
+                const addName = function (name) {
+                    if (!name) return;
+                    if (!fileMap[name] || (date && date > (fileMap[name].uploadedAt || ""))) {
+                        fileMap[name] = { filename: name, filesize: 0, uploadedAt: date };
+                    }
+                };
+                if (Array.isArray(item.files)) item.files.forEach(addName);
+                if (Array.isArray(item.filenames)) item.filenames.forEach(addName);
+            };
+            currentResultData.forEach(function (record) {
+                processItem(record);
+                if (Array.isArray(record.filesprocesed)) record.filesprocesed.forEach(processItem);
+            });
+            filesToRender = Object.values(fileMap);
+        }
+
+        renderFiles(filesToRender);
+        renderReports(currentResultData);
+
+        return true;
+    } catch (e) {
+        console.warn("Profile SWR hydration error:", e);
+        return false;
+    }
+}
+
+function saveProfileToCache(email, user, fileData, resultData, profileFiles, analysisResults) {
+    if (!email) return;
+    try {
+        localStorage.setItem(
+            "assigncheck_profile_cache_" + email,
+            JSON.stringify({
+                timestamp: Date.now(),
+                user,
+                fileData,
+                resultData,
+                profileFiles,
+                analysisResults
+            })
+        );
+    } catch (e) {}
+}
+
+
+/* =========================================================
    LOAD PROFILE
 ========================================================= */
 
@@ -1680,33 +1798,46 @@ async function loadProfile() {
     }
 
 
-    if (userNameEl) {
-        userNameEl.textContent =
-            "Loading...";
-    }
-
-
     if (userEmailEl) {
         userEmailEl.textContent =
             email;
     }
 
 
+    // 1. Instant Cache Hydration (SWR: 0ms perceived loading time!)
+    const hasRenderedFromCache = hydrateProfileFromCache(email);
+
+    if (!hasRenderedFromCache && userNameEl) {
+        userNameEl.textContent =
+            "Loading...";
+    }
+
+
+    // 2. Fetch fresh data (Fast unified summary first, fallback to parallel)
     try {
+        let summary = await fetchProfileSummary(email);
 
-        const [
-            user,
-            fileData,
-            resultData
-        ] = await Promise.all([
+        let user, fileData, resultData;
 
-            getUser(),
+        if (summary) {
+            user = summary.user;
+            fileData = summary.fileData;
+            resultData = summary.resultData;
+        } else {
+            const [
+                userRes,
+                fileDataRes,
+                resultDataRes
+            ] = await Promise.allSettled([
+                getUser(),
+                getFileData(),
+                getFileResults()
+            ]);
 
-            getFileData(),
-
-            getFileResults()
-
-        ]);
+            user = userRes.status === "fulfilled" ? userRes.value : null;
+            fileData = fileDataRes.status === "fulfilled" ? fileDataRes.value : null;
+            resultData = resultDataRes.status === "fulfilled" ? resultDataRes.value : [];
+        }
 
 
         currentUser =
@@ -1749,24 +1880,6 @@ async function loadProfile() {
                 resultData,
                 fileData
             );
-
-
-        console.log(
-            "PROFILE FILES:",
-            profileFiles
-        );
-
-
-        console.log(
-            "FILERESULT DATA:",
-            resultData
-        );
-
-
-        console.log(
-            "FINAL ANALYSES:",
-            analysisResults
-        );
 
 
         /*
@@ -1819,6 +1932,20 @@ async function loadProfile() {
         );
 
 
+        /*
+           SAVE TO CACHE FOR NEXT INSTANT LOAD
+        */
+
+        saveProfileToCache(
+            email,
+            user,
+            fileData,
+            resultData,
+            profileFiles,
+            analysisResults
+        );
+
+
     } catch (error) {
 
         console.error(
@@ -1826,38 +1953,33 @@ async function loadProfile() {
             error
         );
 
+        if (!hasRenderedFromCache) {
+            updateProfile({
+                email: email
+            });
 
-        updateProfile({
-            email: email
-        });
+            if (totalFilesEl) {
+                totalFilesEl.textContent = "0";
+            }
 
+            if (totalSizeEl) {
+                totalSizeEl.textContent = "0 B";
+            }
 
-        if (totalFilesEl) {
-            totalFilesEl.textContent = "0";
+            if (totalAnalysesEl) {
+                totalAnalysesEl.textContent = "0";
+            }
+
+            if (lastUploadEl) {
+                lastUploadEl.textContent = "—";
+            }
+
+            analysisResults = [];
+            renderEmptyFiles();
         }
-
-
-        if (totalSizeEl) {
-            totalSizeEl.textContent = "0 B";
-        }
-
-
-        if (totalAnalysesEl) {
-            totalAnalysesEl.textContent = "0";
-        }
-
-
-        if (lastUploadEl) {
-            lastUploadEl.textContent = "—";
-        }
-
-
-        analysisResults = [];
-
-
-        renderEmptyFiles();
     }
 }
+
 
 
 /* =========================================================

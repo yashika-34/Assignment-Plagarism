@@ -16,8 +16,9 @@ const API_BASE = (function () {
   ) {
     return "http://localhost:3000";
   }
-  // ✏️  Replace this with your deployed backend URL when you host it
-  return "http://localhost:3000";
+  // ✏️  Render/Railway/etc pe deploy karne ke baad apna URL yahan daalo
+  // Example: return "https://assigncheck.onrender.com";
+  return "https://assigncheck.onrender.com";
 })();
 
 export default API_BASE;

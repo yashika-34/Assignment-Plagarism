@@ -37,6 +37,7 @@ import {
   applyalgo,
   getthecommongrams,
   detectSpellingMistakes,
+  detectSpellingMistakesAsync,
   extractCommonPhrases,
   highlightTextWithMatchesAndTypos,
   extractFileText,
@@ -1221,8 +1222,17 @@ async function compareTwoDocuments(fileA, fileB, textA, textB, filterOptions) {
   }
 
   const commonPhrases = extractCommonPhrases(matchesA, filteredA, filteredB);
-  const typosA = detectSpellingMistakes(filteredA, fileA.name, { peerText: filteredB });
-  const typosB = detectSpellingMistakes(filteredB, fileB.name, { peerText: filteredA });
+  let typosA = [];
+  let typosB = [];
+  try {
+    [typosA, typosB] = await Promise.all([
+      detectSpellingMistakesAsync(filteredA, fileA.name),
+      detectSpellingMistakesAsync(filteredB, fileB.name)
+    ]);
+  } catch (e) {
+    typosA = detectSpellingMistakes(filteredA, fileA.name, { peerText: filteredB });
+    typosB = detectSpellingMistakes(filteredB, fileB.name, { peerText: filteredA });
+  }
 
   const matchSecCount = matchesA.length > 0 ? matchesA.length : (score > 0 ? Math.max(1, commonPhrases.length) : 0);
   const diffSecCount = diffs.length > 0 ? diffs.length : Math.max(0, chunksA.length - matchSecCount);
@@ -1325,12 +1335,19 @@ async function compareTwoDocuments(fileA, fileB, textA, textB, filterOptions) {
           return res.json();
         }
       }).then(function(savedReport) {
-        // Update sessionStorage with server-confirmed report so ?id= URL lookup works
+        // Update sessionStorage and localStorage cache with server-confirmed report
         if (savedReport) {
           const mergedReport = Object.assign({}, reportObj, savedReport);
           try {
             sessionStorage.setItem("reportData", JSON.stringify(mergedReport));
             sessionStorage.setItem("lastAnalysisResult", JSON.stringify(mergedReport));
+            const cacheKey = "assigncheck_history_cache_" + email;
+            const existingCache = JSON.parse(localStorage.getItem(cacheKey) || "[]");
+            // Remove any old copy if ID matches, then unshift
+            const filteredCache = existingCache.filter(r => (r.id !== mergedReport.id && r._id !== mergedReport.id));
+            filteredCache.unshift(mergedReport);
+            localStorage.setItem(cacheKey, JSON.stringify(filteredCache));
+            localStorage.removeItem("assigncheck_profile_cache_" + email);
           } catch (e) {}
         }
       }).catch(e => console.warn("Background report save error:", e));
@@ -2239,11 +2256,22 @@ async function displayResults(
           filesecondmatches: matchesB
         };
 
-        await fetch(`${API_BASE}/reports`, {
+        const res2 = await fetch(`${API_BASE}/reports`, {
           method: "POST",
           headers: { "Content-Type": "application/json", ..._authHdr },
           body: JSON.stringify(reportEntry)
         });
+        if (res2.ok) {
+          const saved2 = await res2.json();
+          try {
+            const cacheKey = "assigncheck_history_cache_" + email;
+            const existingCache = JSON.parse(localStorage.getItem(cacheKey) || "[]");
+            const filteredCache = existingCache.filter(r => (r.id !== saved2.id && r._id !== saved2.id));
+            filteredCache.unshift(saved2);
+            localStorage.setItem(cacheKey, JSON.stringify(filteredCache));
+            localStorage.removeItem("assigncheck_profile_cache_" + email);
+          } catch (e) {}
+        }
       } catch (repErr) {
         console.warn("Could not save to /reports:", repErr);
       }
@@ -2488,26 +2516,53 @@ function renderUI(result) {
       ? result.spellingMistakesB
       : dynamicTyposB;
 
-  if (panelABody) {
+  function renderPanels(tA, tB) {
+    if (panelABody) {
+      panelABody.innerHTML =
+        highlightTextWithMatchesAndTypos(
+          textA,
+          matchesA,
+          tA,
+          {
+            showMatches: true,
+            showTypos: true,
+            otherText: textB
+          }
+        );
+    }
 
-    panelABody.innerHTML =
-      highlightTextWithMatchesAndTypos(
-        textA,
-        matchesA,
-        typosA
-      );
+    if (panelBBody) {
+      panelBBody.innerHTML =
+        highlightTextWithMatchesAndTypos(
+          textB,
+          matchesB,
+          tB,
+          {
+            showMatches: true,
+            showTypos: true,
+            otherText: textA
+          }
+        );
+    }
   }
 
+  // Render immediately with local typos
+  renderPanels(typosA, typosB);
 
-  if (panelBBody) {
-
-    panelBBody.innerHTML =
-      highlightTextWithMatchesAndTypos(
-        textB,
-        matchesB,
-        typosB
-      );
-  }
+  // Fire-and-forget: upgrade with server dictionary results asynchronously
+  Promise.all([
+    detectSpellingMistakesAsync(textA, fileAName),
+    detectSpellingMistakesAsync(textB, fileBName)
+  ]).then(function([asyncTyposA, asyncTyposB]) {
+    const finalA = asyncTyposA.length >= typosA.length ? asyncTyposA : typosA;
+    const finalB = asyncTyposB.length >= typosB.length ? asyncTyposB : typosB;
+    // Only re-render if the server returned more/different typos
+    if (finalA.length !== typosA.length || finalB.length !== typosB.length) {
+      renderPanels(finalA, finalB);
+    }
+  }).catch(function() {
+    // Silently ignore — local render already done above
+  });
 
 
   /* ---------------------------------------------
@@ -3186,6 +3241,8 @@ export function reconstructMatchesFromGrams(
       }
     );
 
+  // Adapt gram size for short texts so single-word matches are found
+  const effectiveGramSize = Math.max(1, Math.min(gramSize, Math.min(cleanA.length, cleanB.length)));
 
   /* ---------------------------------------------
      NORMALIZE COMMON GRAMS
@@ -3246,6 +3303,12 @@ export function reconstructMatchesFromGrams(
     );
   }
 
+  // For very short texts with no common grams, build grams from scratch
+  // using token-level matching so "hello" in both docs is detected
+  if (normalizedGrams.size === 0 && cleanA.length > 0 && cleanB.length > 0) {
+    const setBClean = new Set(cleanB.filter(Boolean));
+    cleanA.forEach(w => { if (w && setBClean.has(w)) normalizedGrams.add(w); });
+  }
 
   /* ---------------------------------------------
      INDEX FILE B
@@ -3257,7 +3320,7 @@ export function reconstructMatchesFromGrams(
 
   for (
     let j = 0;
-    j <= cleanB.length - gramSize;
+    j <= cleanB.length - effectiveGramSize;
     j++
   ) {
 
@@ -3265,7 +3328,7 @@ export function reconstructMatchesFromGrams(
       cleanB
         .slice(
           j,
-          j + gramSize
+          j + effectiveGramSize
         )
         .join(" ");
 
@@ -3318,7 +3381,7 @@ export function reconstructMatchesFromGrams(
 
   for (
     let i = 0;
-    i <= cleanA.length - gramSize;
+    i <= cleanA.length - effectiveGramSize;
     i++
   ) {
 
@@ -3333,7 +3396,7 @@ export function reconstructMatchesFromGrams(
       cleanA
         .slice(
           i,
-          i + gramSize
+          i + effectiveGramSize
         )
         .join(" ");
 
@@ -3396,7 +3459,7 @@ export function reconstructMatchesFromGrams(
 
 
       if (
-        bestK >= gramSize
+        bestK >= effectiveGramSize
       ) {
 
         let isBVisited =
@@ -3504,6 +3567,7 @@ export function reconstructMatchesFromGrams(
     matchesB
   };
 }
+
 
 
 /* =========================================================

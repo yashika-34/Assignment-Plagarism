@@ -6,6 +6,7 @@ import API_BASE from "./config.js";
 import { showToast } from "./toast.js";
 import {
   detectSpellingMistakes,
+  detectSpellingMistakesAsync,
   extractCommonPhrases,
   highlightTextWithMatchesAndTypos
 } from "./SpellChecker.js";
@@ -19,6 +20,8 @@ let currentPhrases = [];
 let currentTyposA = [];
 let currentTyposB = [];
 let allTypos = [];
+let currentSections = [];
+let activeSectionFilter = "all";
 
 // =========================================
 // INITIALIZE REPORT ON DOM LOAD
@@ -27,6 +30,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   setupTabs();
   setupToggles();
   setupSearch();
+  setupSectionsToolbar();
   setupDownloadClean();
   setupPdfExport();
 
@@ -67,24 +71,70 @@ function setupTabs() {
 // =========================================
 function setupToggles() {
   const toggleMatches = document.getElementById("toggleMatches");
+  const toggleDiffs = document.getElementById("toggleDiffs");
   const toggleTypos = document.getElementById("toggleTypos");
 
   function onToggleChange() {
     if (!currentReport) return;
 
     const showMatches = toggleMatches ? toggleMatches.checked : true;
+    const showDiffs = toggleDiffs ? toggleDiffs.checked : true;
     const showTypos = toggleTypos ? toggleTypos.checked : true;
 
-    renderDocumentTexts(showMatches, showTypos);
+    renderDocumentTexts(showMatches, showTypos, showDiffs);
   }
 
   if (toggleMatches !== null) {
     toggleMatches.addEventListener("change", onToggleChange);
   }
 
+  if (toggleDiffs !== null) {
+    toggleDiffs.addEventListener("change", onToggleChange);
+  }
+
   if (toggleTypos !== null) {
     toggleTypos.addEventListener("change", onToggleChange);
   }
+}
+
+// =========================================
+// ALL SECTIONS TOOLBAR & FILTER LOGIC
+// =========================================
+function setupSectionsToolbar() {
+  const filterPills = document.querySelectorAll(".sections-filter-group .filter-pill");
+  const searchInput = document.getElementById("sectionsSearch");
+
+  filterPills.forEach(pill => {
+    pill.addEventListener("click", function () {
+      filterPills.forEach(p => p.classList.remove("active"));
+      this.classList.add("active");
+      activeSectionFilter = this.getAttribute("data-filter") || "all";
+      filterAndRenderSections();
+    });
+  });
+
+  if (searchInput !== null) {
+    searchInput.addEventListener("input", function () {
+      filterAndRenderSections();
+    });
+  }
+}
+
+function filterAndRenderSections() {
+  const searchInput = document.getElementById("sectionsSearch");
+  const query = (searchInput ? searchInput.value : "").trim().toLowerCase();
+
+  const filtered = currentSections.filter(sec => {
+    if (activeSectionFilter !== "all" && sec.type !== activeSectionFilter) {
+      return false;
+    }
+    if (query && !sec.text.toLowerCase().includes(query)) {
+      return false;
+    }
+    return true;
+  });
+
+  renderSectionsGrid(filtered);
 }
 
 // =========================================
@@ -231,13 +281,13 @@ async function loadAndRenderReport() {
   }
 
   currentReport = report;
-  renderReportDetails(report);
+  await renderReportDetails(report);
 }
 
 // =========================================
 // MAIN RENDER FUNCTION
 // =========================================
-function renderReportDetails(report) {
+async function renderReportDetails(report) {
   // Extract filenames
   let fileAName = "Document 1.txt";
   let fileBName = "Document 2.txt";
@@ -269,9 +319,18 @@ function renderReportDetails(report) {
       ? report.matchesA
       : [];
 
-  // Detect spelling mistakes (pass peerText for cross-document contextual detection)
-  const dynamicTyposA = detectSpellingMistakes(textA, fileAName, { peerText: textB });
-  const dynamicTyposB = detectSpellingMistakes(textB, fileBName, { peerText: textA });
+  // Detect spelling mistakes dynamically via authoritative server dictionary & client rules
+  let dynamicTyposA = [];
+  let dynamicTyposB = [];
+  try {
+    [dynamicTyposA, dynamicTyposB] = await Promise.all([
+      detectSpellingMistakesAsync(textA, fileAName),
+      detectSpellingMistakesAsync(textB, fileBName)
+    ]);
+  } catch (e) {
+    dynamicTyposA = detectSpellingMistakes(textA, fileAName, { peerText: textB });
+    dynamicTyposB = detectSpellingMistakes(textB, fileBName, { peerText: textA });
+  }
 
   currentTyposA = (Array.isArray(report.spellingMistakesA) && report.spellingMistakesA.length > dynamicTyposA.length)
     ? report.spellingMistakesA
@@ -285,6 +344,11 @@ function renderReportDetails(report) {
   currentPhrases = (Array.isArray(report.commonPhrases) && report.commonPhrases.length > 0)
     ? report.commonPhrases
     : extractCommonPhrases(matchesA, textA, textB);
+
+  // Extract ALL sections (both matching and different / unique sections)
+  currentSections = extractDocumentSections(textA, textB, matchesA);
+  const matchingSectionsCount = currentSections.filter(s => s.type === "matching").length;
+  const differentSectionsCount = currentSections.filter(s => s.type === "different").length;
 
   // Total words
   const wordsA = textA ? textA.trim().split(/\s+/).length : 0;
@@ -380,6 +444,12 @@ function renderReportDetails(report) {
   const cardSimVal = document.getElementById("cardSimVal");
   if (cardSimVal) cardSimVal.textContent = similarity + "%";
 
+  const cardMatchingVal = document.getElementById("cardMatchingVal");
+  if (cardMatchingVal) cardMatchingVal.textContent = matchingSectionsCount;
+
+  const cardDifferentVal = document.getElementById("cardDifferentVal");
+  if (cardDifferentVal) cardDifferentVal.textContent = differentSectionsCount;
+
   const cardPhrasesVal = document.getElementById("cardPhrasesVal");
   if (cardPhrasesVal) cardPhrasesVal.textContent = currentPhrases.length;
 
@@ -390,6 +460,18 @@ function renderReportDetails(report) {
   if (cardWordsVal) cardWordsVal.textContent = totalWords.toLocaleString();
 
   // 4. Update Tab Badges
+  const tabSectionsCount = document.getElementById("tabSectionsCount");
+  if (tabSectionsCount) tabSectionsCount.textContent = currentSections.length;
+
+  const countFilterAll = document.getElementById("countFilterAll");
+  if (countFilterAll) countFilterAll.textContent = currentSections.length;
+
+  const countFilterMatching = document.getElementById("countFilterMatching");
+  if (countFilterMatching) countFilterMatching.textContent = matchingSectionsCount;
+
+  const countFilterDifferent = document.getElementById("countFilterDifferent");
+  if (countFilterDifferent) countFilterDifferent.textContent = differentSectionsCount;
+
   const tabPhrasesCount = document.getElementById("tabPhrasesCount");
   if (tabPhrasesCount) tabPhrasesCount.textContent = currentPhrases.length;
 
@@ -397,22 +479,31 @@ function renderReportDetails(report) {
   if (tabTyposCount) tabTyposCount.textContent = allTypos.length;
 
   // 5. Render Documents with Highlights
-  renderDocumentTexts(true, true);
+  const toggleMatches = document.getElementById("toggleMatches");
+  const toggleDiffs = document.getElementById("toggleDiffs");
+  const toggleTypos = document.getElementById("toggleTypos");
+  const showMatches = toggleMatches ? toggleMatches.checked : true;
+  const showDiffs = toggleDiffs ? toggleDiffs.checked : true;
+  const showTypos = toggleTypos ? toggleTypos.checked : true;
+  renderDocumentTexts(showMatches, showTypos, showDiffs);
 
-  // 6. Render Common Phrases List
+  // 6. Render All Sections Grid
+  renderSectionsGrid(currentSections);
+
+  // 7. Render Common Phrases List
   renderPhrasesList(currentPhrases);
 
-  // 7. Render Spelling Mistakes
+  // 8. Render Spelling Mistakes
   renderTyposList(allTypos);
 
-  // 8. Render Summary Details
+  // 9. Render Summary Details
   renderSummaryDetails(similarity, currentPhrases.length, allTypos.length);
 }
 
 // =========================================
 // RENDER DOCUMENT TEXT WITH HIGHLIGHTS
 // =========================================
-function renderDocumentTexts(showMatches, showTypos) {
+function renderDocumentTexts(showMatches = true, showTypos = true, showDiffs = true) {
   if (!currentReport) return;
 
   const textA = currentReport.textA || "";
@@ -436,6 +527,7 @@ function renderDocumentTexts(showMatches, showTypos) {
   if (docABody) {
     docABody.innerHTML = highlightTextWithMatchesAndTypos(textA, matchesA, currentTyposA, {
       showMatches: showMatches,
+      showDiffs: showDiffs,
       showTypos: showTypos,
       otherText: textB
     });
@@ -444,11 +536,188 @@ function renderDocumentTexts(showMatches, showTypos) {
   if (docBBody) {
     docBBody.innerHTML = highlightTextWithMatchesAndTypos(textB, matchesB, currentTyposB, {
       showMatches: showMatches,
+      showDiffs: showDiffs,
       showTypos: showTypos,
       otherText: textA
     });
   }
 }
+
+// =========================================
+// EXTRACT & CATEGORIZE ALL SECTIONS
+// =========================================
+function extractDocumentSections(textA, textB, matchesA = []) {
+  const sections = [];
+  if (!textA && !textB) return sections;
+
+  function norm(str) {
+    return (str || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+  }
+
+  const normB = norm(textB);
+  const wordsB = normB.split(" ").filter(Boolean);
+  const shinglesB = new Set();
+  for (let i = 0; i <= wordsB.length - 3; i++) {
+    shinglesB.add(wordsB.slice(i, i + 3).join(" "));
+  }
+
+  function getBlocks(rawText) {
+    if (!rawText) return [];
+    let blocks = rawText.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
+    if (blocks.length <= 1 && rawText.length > 150) {
+      blocks = rawText.split(/\n+/).map(s => s.trim()).filter(Boolean);
+    }
+    if (blocks.length <= 1 && rawText.length > 150) {
+      const sentences = rawText.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g);
+      if (sentences && sentences.length > 1) {
+        const chunks = [];
+        for (let i = 0; i < sentences.length; i += 2) {
+          chunks.push(sentences.slice(i, i + 2).join(" ").trim());
+        }
+        return chunks;
+      }
+    }
+    return blocks.length > 0 ? blocks : [rawText.trim()];
+  }
+
+  const blocksA = getBlocks(textA);
+  const blocksB = getBlocks(textB);
+
+  // 1. Analyze blocks from Document A
+  blocksA.forEach((blk, idx) => {
+    const normBlk = norm(blk);
+    const wordsBlk = normBlk.split(" ").filter(Boolean);
+
+    let matchingShingles = 0;
+    let totalShingles = 0;
+    for (let i = 0; i <= wordsBlk.length - 3; i++) {
+      totalShingles++;
+      const sh = wordsBlk.slice(i, i + 3).join(" ");
+      if (shinglesB.has(sh)) {
+        matchingShingles++;
+      }
+    }
+
+    const overlapRatio = totalShingles > 0 ? matchingShingles / totalShingles : 0;
+    const isMatching = overlapRatio >= 0.25 || (normB.includes(normBlk) && normBlk.length > 15);
+
+    sections.push({
+      id: `sec-a-${idx + 1}`,
+      doc: "Doc A",
+      index: idx + 1,
+      type: isMatching ? "matching" : "different",
+      title: isMatching ? `Matching Section (Doc A #${idx + 1})` : `Different / Unique Section (Doc A #${idx + 1})`,
+      badge: isMatching ? "Matching" : "Different / Unique",
+      text: blk,
+      wordCount: wordsBlk.length,
+      overlap: Math.round(overlapRatio * 100)
+    });
+  });
+
+  // 2. Analyze blocks from Document B that have NO overlap with Document A
+  const normA = norm(textA);
+  const wordsA = normA.split(" ").filter(Boolean);
+  const shinglesA = new Set();
+  for (let i = 0; i <= wordsA.length - 3; i++) {
+    shinglesA.add(wordsA.slice(i, i + 3).join(" "));
+  }
+
+  blocksB.forEach((blk, idx) => {
+    const normBlk = norm(blk);
+    const wordsBlk = normBlk.split(" ").filter(Boolean);
+
+    let matchingShingles = 0;
+    let totalShingles = 0;
+    for (let i = 0; i <= wordsBlk.length - 3; i++) {
+      totalShingles++;
+      const sh = wordsBlk.slice(i, i + 3).join(" ");
+      if (shinglesA.has(sh)) {
+        matchingShingles++;
+      }
+    }
+
+    const overlapRatio = totalShingles > 0 ? matchingShingles / totalShingles : 0;
+    if (overlapRatio < 0.25 && !normA.includes(normBlk)) {
+      sections.push({
+        id: `sec-b-${idx + 1}`,
+        doc: "Doc B",
+        index: idx + 1,
+        type: "different",
+        title: `Different / Unique Section (Doc B #${idx + 1})`,
+        badge: "Different / Unique",
+        text: blk,
+        wordCount: wordsBlk.length,
+        overlap: 0
+      });
+    }
+  });
+
+  return sections;
+}
+
+// =========================================
+// RENDER ALL SECTIONS GRID
+// =========================================
+function renderSectionsGrid(sectionsList) {
+  const container = document.getElementById("sectionsGrid");
+  if (!container) return;
+
+  if (!sectionsList || sectionsList.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <h3>No sections found</h3>
+        <p>No matching or unique sections found under this filter.</p>
+      </div>
+    `;
+    return;
+  }
+
+  let html = "";
+  sectionsList.forEach(sec => {
+    const isMatch = sec.type === "matching";
+    html += `
+      <div class="section-card ${isMatch ? 'matching' : 'different'}">
+        <div class="section-header-row">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="section-badge ${isMatch ? 'matching' : 'different'}">${escapeHtml(sec.badge)}</span>
+            <span style="font-weight:700;font-size:14px;color:var(--ink);">${escapeHtml(sec.title)}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div class="section-meta-info">
+              <span>${sec.doc}</span> • <span>${sec.wordCount} words</span>
+              ${isMatch ? ` • <span style="color:#ca8a04;font-weight:700;">${sec.overlap}% similarity</span>` : ` • <span style="color:#0284c7;font-weight:700;">100% Unique</span>`}
+            </div>
+            <button type="button" class="btn btn-outline" style="padding:4px 10px;font-size:11px;" onclick="locateSection('${escapeHtml(sec.text.slice(0, 40))}')">
+              View in Document →
+            </button>
+          </div>
+        </div>
+        <div class="section-content-text">${escapeHtml(sec.text)}</div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+
+// Make locateSection globally available
+window.locateSection = function (sectionSnippet) {
+  const tabBtn = document.querySelector(".tab-btn[data-tab='tab-highlight']");
+  if (tabBtn) tabBtn.click();
+
+  setTimeout(function () {
+    const marks = document.querySelectorAll("mark.highlight-match, mark.highlight-diff, .doc-body p");
+    const needle = (sectionSnippet || "").toLowerCase().trim();
+    for (let i = 0; i < marks.length; i++) {
+      if (marks[i].textContent.toLowerCase().includes(needle)) {
+        marks[i].scrollIntoView({ behavior: "smooth", block: "center" });
+        marks[i].style.outline = "3px solid #38bdf8";
+        setTimeout(() => { marks[i].style.outline = ""; }, 2500);
+        break;
+      }
+    }
+  }, 100);
+};
 
 // =========================================
 // RENDER COMMON PHRASES LIST
@@ -908,7 +1177,7 @@ function renderEmptyReportState() {
 
   const loadSampleBtn = document.getElementById("loadSampleReportBtn");
   if (loadSampleBtn) {
-    loadSampleBtn.addEventListener("click", function () {
+    loadSampleBtn.addEventListener("click", async function () {
       const sampleReport = {
         id: "REP-DEMO-SAMPLE",
         filenames: ["Assignment_Student_Alpha.txt", "Assignment_Student_Beta.txt"],
@@ -935,7 +1204,7 @@ function renderEmptyReportState() {
         ]
       };
       currentReport = sampleReport;
-      renderReportDetails(sampleReport);
+      await renderReportDetails(sampleReport);
       showToast("Demo report loaded successfully!", "success");
     });
   }
