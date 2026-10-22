@@ -18,7 +18,7 @@ const API_BASE = (function () {
   }
   // ✏️  Render/Railway/etc pe deploy karne ke baad apna URL yahan daalo
   // Example: return "https://assigncheck.onrender.com";
-  return "https://assigncheck.onrender.com";
+  return "https://assignment-plagarism-2.onrender.com";
 })();
 
 export default API_BASE;
