@@ -75,36 +75,43 @@ export async function handleSignup(event) {
     return;
   }
 
-  const response = await fetch(`${API_BASE}/users?email=` + encodeURIComponent(email)); // searching with given email
-  const users = await response.json();
-
-  if (users.length > 0) {
-    showFormError("signupError", "An account with this email already exists.");
-    return;
-  }
-
   const newUser = {
     name: name,
     email: email,
     password: password
   };
 
-  await fetch(`${API_BASE}/users`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(newUser)
-  });
+  try {
+    const signupRes = await fetch(`${API_BASE}/users`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newUser)
+    });
 
-  localStorage.removeItem("authToken");
-  localStorage.removeItem("loggedIn");
-  localStorage.removeItem("userEmail");
-  sessionStorage.clear();
+    const signupData = await signupRes.json();
 
-  document.getElementById("signupForm").reset();
-  document.getElementById("signupPanel").classList.remove("active");
-  document.getElementById("loginPanel").classList.add("active");
+    if (!signupRes.ok) {
+      showFormError("signupError", signupData.error || "Signup failed. Please try again.");
+      return;
+    }
 
-  showFormError("loginInfo", "Account created! Please log in.");
+    // ✅ Server returns a JWT token on successful registration — auto-login directly!
+    // This avoids user having to manually login after signup.
+    if (signupData.token) {
+      localStorage.setItem("authToken", signupData.token);
+    }
+    localStorage.setItem("loggedIn", "true");
+    localStorage.setItem("userEmail", email);
+    sessionStorage.clear();
+
+    document.getElementById("signupForm").reset();
+
+    await updateNavbar();
+    closeAuth();
+
+  } catch (err) {
+    showFormError("signupError", "Server error. Please try again.");
+  }
 }
 
 
@@ -285,24 +292,10 @@ export async function updateNavbar() {
       }
     }
 
-    const response = await fetch(`${API_BASE}/users?email=` + encodeURIComponent(userEmail));
-    const users = await response.json();
-    if (users.length === 0) {
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("loggedIn");
-      localStorage.removeItem("userEmail");
-      return;
-    }
-    const user = users[0];
-    const firstLetter = user.name.charAt(0).toUpperCase();
-    if (loginButton !== null) loginButton.style.display = "none";
-    if (signupButton !== null) signupButton.style.display = "none";
-    if (profileWrap !== null) profileWrap.classList.add("show");
-    if (profileButton !== null) profileButton.textContent = firstLetter;
-    if (mobileLoginButton !== null) mobileLoginButton.style.display = "none";
-    if (mobileSignupButton !== null) mobileSignupButton.style.display = "none";
-    if (mobileProfileWrap !== null) mobileProfileWrap.classList.add("show");
-    if (mobileProfileButton !== null) mobileProfileButton.textContent = firstLetter;
+    // No valid token — clear stale auth state
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("loggedIn");
+    localStorage.removeItem("userEmail");
   } else {
     if (loginButton !== null) loginButton.style.display = "";
     if (signupButton !== null) signupButton.style.display = "";
