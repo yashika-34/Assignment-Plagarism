@@ -397,21 +397,49 @@ function checkButtonState() {
    ADD INCOMING FILES
 ========================================================= */
 
+const ALLOWED_EXTENSIONS = ["pdf", "docx", "doc", "txt", "pptx", "ppt"];
+
 function handleIncomingFiles(files, isRightZone = false) {
   if (!files || files.length === 0) return;
 
+  const validFiles = [];
+  let invalidCount = 0;
+
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    if (!f || !f.name) continue;
+    const ext = f.name.split(".").pop().toLowerCase();
+    if (ALLOWED_EXTENSIONS.includes(ext)) {
+      validFiles.push(f);
+    } else {
+      invalidCount++;
+    }
+  }
+
+  if (validFiles.length === 0) {
+    showToast("Please upload PDF, DOCX, TXT, or PPTX documents.", "warning");
+    return;
+  }
+
+  if (invalidCount > 0) {
+    showToast(`${invalidCount} unsupported file(s) skipped. Allowed: PDF, DOCX, TXT, PPTX.`, "warning");
+  }
+
   if (currentMode === "reference") {
     if (isRightZone) {
-      teacherRefFile = files[0];
+      teacherRefFile = validFiles[0];
+      showToast(`Teacher reference: ${teacherRefFile.name}`, "info");
     } else {
-      for (let i = 0; i < files.length; i++) {
-        studentFiles.push(files[i]);
+      for (let i = 0; i < validFiles.length; i++) {
+        studentFiles.push(validFiles[i]);
       }
+      showToast(`${validFiles.length} student assignment(s) added!`, "success");
     }
   } else {
-    for (let i = 0; i < files.length; i++) {
-      fileList.push(files[i]);
+    for (let i = 0; i < validFiles.length; i++) {
+      fileList.push(validFiles[i]);
     }
+    showToast(`${validFiles.length} file(s) added!`, "success");
   }
 
   renderFileList();
@@ -449,80 +477,155 @@ if (dropZoneRight && fileInputRight) {
 }
 
 /* =========================================================
-   DRAG AND DROP HANDLERS (LEFT & RIGHT ZONES)
+   DRAG AND DROP HANDLERS (ROBUST SUPPORT & VISUAL CUES)
 ========================================================= */
 
-const dragEvents = ["dragenter", "dragover", "dragleave", "drop"];
+// Prevent default drag & drop behaviors across window so files don't open in browser tab
+["dragenter", "dragover", "dragleave", "drop"].forEach(eventName => {
+  window.addEventListener(eventName, function (e) {
+    e.preventDefault();
+  }, false);
+  document.body.addEventListener(eventName, function (e) {
+    e.preventDefault();
+  }, false);
+});
 
-if (dropZoneLeft) {
-  dragEvents.forEach(ev => {
-    dropZoneLeft.addEventListener(ev, function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    });
-  });
+// Helper to reliably extract files (including folder drag & drop)
+async function getFilesFromDataTransfer(dataTransfer) {
+  const files = [];
+  if (!dataTransfer) return files;
 
-  dropZoneLeft.addEventListener("drop", async function (event) {
-    event.preventDefault();
-    event.stopPropagation();
+  const items = dataTransfer.items;
+  let hasDirectory = false;
 
-    const items = event.dataTransfer.items;
-    const files = [];
-
-    if (items && items.length > 0) {
+  if (items && items.length > 0) {
+    try {
       for (let i = 0; i < items.length; i++) {
-        const entry = items[i].webkitGetAsEntry ? items[i].webkitGetAsEntry() : null;
+        const item = items[i];
+        if (item.kind === "file") {
+          const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+          if (entry && entry.isDirectory) {
+            hasDirectory = true;
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      hasDirectory = false;
+    }
+  }
+
+  if (hasDirectory && items) {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === "file") {
+        const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
         if (entry) {
           await processEntry(entry, files);
         } else {
-          const file = items[i].getAsFile();
+          const file = item.getAsFile ? item.getAsFile() : null;
           if (file) files.push(file);
         }
       }
-    } else if (event.dataTransfer.files) {
-      for (let i = 0; i < event.dataTransfer.files.length; i++) {
-        files.push(event.dataTransfer.files[i]);
+    }
+  } else if (dataTransfer.files && dataTransfer.files.length > 0) {
+    for (let i = 0; i < dataTransfer.files.length; i++) {
+      files.push(dataTransfer.files[i]);
+    }
+  } else if (items && items.length > 0) {
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].kind === "file") {
+        const file = items[i].getAsFile ? items[i].getAsFile() : null;
+        if (file) files.push(file);
       }
     }
+  }
 
-    handleIncomingFiles(files, false);
-  });
+  return files;
 }
 
-if (dropZoneRight) {
-  dragEvents.forEach(ev => {
-    dropZoneRight.addEventListener(ev, function (event) {
-      event.preventDefault();
-      event.stopPropagation();
+// Attach robust drag and drop handling to an element
+function setupDropTarget(element, onDropCallback, highlightTargets = []) {
+  if (!element) return;
+  const targets = Array.isArray(highlightTargets) ? highlightTargets.filter(Boolean) : [highlightTargets].filter(Boolean);
+  if (targets.length === 0) targets.push(element);
+
+  let dragCounter = 0;
+
+  element.addEventListener("dragenter", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter++;
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = "copy";
+    }
+    targets.forEach(t => t.classList.add("dragover"));
+  });
+
+  element.addEventListener("dragover", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = "copy";
+    }
+    targets.forEach(t => {
+      if (!t.classList.contains("dragover")) {
+        t.classList.add("dragover");
+      }
     });
   });
 
-  dropZoneRight.addEventListener("drop", async function (event) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const items = event.dataTransfer.items;
-    const files = [];
-
-    if (items && items.length > 0) {
-      for (let i = 0; i < items.length; i++) {
-        const entry = items[i].webkitGetAsEntry ? items[i].webkitGetAsEntry() : null;
-        if (entry) {
-          await processEntry(entry, files);
-        } else {
-          const file = items[i].getAsFile();
-          if (file) files.push(file);
-        }
-      }
-    } else if (event.dataTransfer.files) {
-      for (let i = 0; i < event.dataTransfer.files.length; i++) {
-        files.push(event.dataTransfer.files[i]);
-      }
+  element.addEventListener("dragleave", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter--;
+    if (dragCounter <= 0) {
+      dragCounter = 0;
+      targets.forEach(t => t.classList.remove("dragover"));
     }
+  });
 
-    handleIncomingFiles(files, true);
+  element.addEventListener("drop", async function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter = 0;
+    targets.forEach(t => t.classList.remove("dragover"));
+
+    try {
+      const droppedFiles = await getFilesFromDataTransfer(e.dataTransfer);
+      if (droppedFiles && droppedFiles.length > 0) {
+        onDropCallback(droppedFiles);
+      }
+    } catch (err) {
+      console.error("Drop processing error:", err);
+      showToast("Error processing dropped files.", "error");
+    }
   });
 }
+
+// 1. Left Drop Zone & Left Zone Card (Student Files)
+const zoneLeftElem = document.getElementById("zoneLeft");
+setupDropTarget(dropZoneLeft, (files) => handleIncomingFiles(files, false), [dropZoneLeft, zoneLeftElem]);
+if (zoneLeftElem) {
+  setupDropTarget(zoneLeftElem, (files) => handleIncomingFiles(files, false), [dropZoneLeft, zoneLeftElem]);
+}
+
+// 2. Right File Panel in Single Mode (Also accepts dropped student files)
+if (filePanelSingle) {
+  setupDropTarget(filePanelSingle, (files) => {
+    if (currentMode === "student") {
+      handleIncomingFiles(files, false);
+    }
+  }, [filePanelSingle]);
+}
+
+// 3. Right Drop Zone & Right Zone Card (Teacher Reference File)
+const zoneRightElem = document.getElementById("zoneRight");
+setupDropTarget(dropZoneRight, (files) => handleIncomingFiles(files, true), [dropZoneRight, zoneRightElem]);
+if (zoneRightElem) {
+  setupDropTarget(zoneRightElem, (files) => handleIncomingFiles(files, true), [dropZoneRight, zoneRightElem]);
+}
+
 
 /* =========================================================
    FILE TYPE

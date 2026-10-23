@@ -550,6 +550,10 @@
       min-height: 220px;
     }
 
+    .zone-drop * {
+      pointer-events: none;
+    }
+
     .zone-drop:hover {
       background: linear-gradient(135deg, var(--primary-soft) 0%, #fff 100%);
     }
@@ -559,16 +563,29 @@
       box-shadow: 0 12px 24px -8px rgba(79, 70, 229, 0.3);
     }
 
-    .zone.dragover {
-      border-color: var(--primary);
-      border-style: solid;
-      background: var(--primary-soft);
+    .zone.dragover,
+    .zone-drop.dragover,
+    .file-panel.dragover {
+      border-color: var(--primary) !important;
+      border-style: dashed !important;
+      background: rgba(79, 70, 229, 0.08) !important;
+      box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.2), var(--shadow-md) !important;
+      transform: scale(1.01);
     }
 
-    .zone.dragover .zone-drop {
-      border-color: var(--primary);
-      border-width: 3px;
-      background: rgba(79, 70, 229, 0.05);
+    .zone.dragover .zone-drop,
+    .zone-drop.dragover {
+      border-color: var(--primary) !important;
+      border-width: 2px !important;
+      background: rgba(79, 70, 229, 0.08) !important;
+    }
+
+    .zone.dragover .z-icon,
+    .zone-drop.dragover .z-icon {
+      transform: scale(1.15) rotate(-4deg);
+      background: var(--primary) !important;
+      color: #fff !important;
+      box-shadow: 0 12px 24px -6px rgba(79, 70, 229, 0.45) !important;
     }
 
     .zone-drop .z-icon {
