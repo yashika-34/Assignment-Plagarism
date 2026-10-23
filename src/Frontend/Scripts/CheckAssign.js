@@ -1,8 +1,26 @@
 "use strict";
 
+/* =========================================================
+   ALL IMPORTS MUST BE AT TOP (ESM strict requirement)
+========================================================= */
+
 import API_BASE from "./config.js";
 import { showToast } from "./toast.js";
 import { openCertificateModal } from "./certificateModal.js";
+import {
+  addfiles,
+  processEntry,
+  filterDocumentText,
+  createChunksLinear,
+  buildthegrams,
+  applyalgo,
+  getthecommongrams,
+  detectSpellingMistakes,
+  detectSpellingMistakesAsync,
+  extractCommonPhrases,
+  highlightTextWithMatchesAndTypos,
+  extractFileText,
+} from "./CheckBackend.js";
 
 /* =========================================================
    ASSIGNCHECK — CHECKASSIGN.JS
@@ -26,23 +44,8 @@ if (!hasToken && !hasLoggedInFlag && !hasEmail) {
 
 
 /* =========================================================
-   BACKEND IMPORTS
+   BACKEND IMPORTS — moved to top; kept comment for clarity
 ========================================================= */
-
-import {
-  addfiles,
-  processEntry,
-  filterDocumentText,
-  createChunksLinear,
-  buildthegrams,
-  applyalgo,
-  getthecommongrams,
-  detectSpellingMistakes,
-  detectSpellingMistakesAsync,
-  extractCommonPhrases,
-  highlightTextWithMatchesAndTypos,
-  extractFileText,
-} from "./CheckBackend.js";
 
 
 /* =========================================================
@@ -250,6 +253,7 @@ const zoneRight = document.getElementById("zoneRight");
 
 for (let i = 0; i < modeCards.length; i++) {
   modeCards[i].addEventListener("click", function () {
+    const prevMode = currentMode;
     currentMode = this.dataset.mode;
 
     for (let j = 0; j < modeCards.length; j++) {
@@ -261,6 +265,11 @@ for (let i = 0; i < modeCards.length; i++) {
     this.setAttribute("aria-checked", "true");
 
     if (currentMode === "reference") {
+      // Switching TO reference mode: sync fileList → studentFiles so files don't vanish
+      if (prevMode === "student" && fileList.length > 0 && studentFiles.length === 0) {
+        studentFiles = [...fileList];
+      }
+
       if (zoneRight) zoneRight.style.display = "flex";
       if (filePanelSingle) filePanelSingle.style.display = "none";
       if (uploadLayout) uploadLayout.className = "upload-layout dual";
@@ -269,7 +278,14 @@ for (let i = 0; i < modeCards.length; i++) {
       const chipLeft = document.getElementById("chipLeft");
       if (labelLeft) labelLeft.textContent = "Student Assignments";
       if (chipLeft) chipLeft.textContent = "S";
+
+      showToast("Mode: Teacher vs Student", "info");
     } else {
+      // Switching TO student mode: sync studentFiles → fileList so files don't vanish
+      if (prevMode === "reference" && studentFiles.length > 0 && fileList.length === 0) {
+        fileList = [...studentFiles];
+      }
+
       if (zoneRight) zoneRight.style.display = "none";
       if (filePanelSingle) filePanelSingle.style.display = "flex";
       if (uploadLayout) uploadLayout.className = "upload-layout single";
@@ -278,6 +294,8 @@ for (let i = 0; i < modeCards.length; i++) {
       const chipLeft = document.getElementById("chipLeft");
       if (labelLeft) labelLeft.textContent = "Student Assignments";
       if (chipLeft) chipLeft.textContent = "S1";
+
+      showToast("Mode: Student vs Student", "info");
     }
 
     renderFileList();
@@ -333,18 +351,40 @@ function renderFileList() {
     const badge = document.getElementById("fileCountBadgeSingle");
     const countText = document.getElementById("fileCountSingle");
 
+    // Also update left zone file count & list so left card shows files
     if (fileCountLeft) {
       fileCountLeft.textContent = fileList.length + (fileList.length === 1 ? " file" : " files");
+    }
+    if (fileListLeft) {
+      addfiles(null, fileList, fileListLeft);
+      // Wire remove buttons in left zone list
+      const removeButtonsLeftSingle = fileListLeft.querySelectorAll(".f-remove");
+      removeButtonsLeftSingle.forEach(btn => {
+        btn.addEventListener("click", function (event) {
+          event.stopPropagation();
+          const index = Number(this.dataset.idx);
+          if (index >= 0 && index < fileList.length) {
+            fileList.splice(index, 1);
+          }
+          renderFileList();
+          checkButtonState();
+        });
+      });
     }
 
     if (container) {
       if (fileList.length === 0) {
         container.innerHTML = `<div class="empty-upload-hint" style="text-align:center;padding:48px 20px;color:var(--muted);font-size:14px;cursor:pointer;">
           <p style="font-weight:700;font-size:15px;color:var(--ink);margin-bottom:6px;">No files selected yet</p>
-          <p style="font-size:13px;color:var(--muted);">Click here or the left card to browse, or drag & drop files.</p>
+          <p style="font-size:13px;color:var(--muted);">Click here or the left card to browse, or drag &amp; drop files.</p>
         </div>`;
         if (badge) badge.textContent = "0";
         if (countText) countText.textContent = "0 files selected";
+        // Make empty hint clickable to open file picker
+        const hint = container.querySelector(".empty-upload-hint");
+        if (hint && fileInputLeft) {
+          hint.addEventListener("click", function () { fileInputLeft.click(); });
+        }
       } else {
         addfiles(null, fileList, container);
         if (badge) badge.textContent = fileList.length;
