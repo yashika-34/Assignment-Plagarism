@@ -1,16 +1,30 @@
 import API_BASE from "./config.js";
 
+// =========================================
+// LOGIN HANDLER
+// =========================================
+
 export async function handleLogin(event) {
   event.preventDefault();
-  const email = document.getElementById("loginEmail").value.trim().toLowerCase();
-  const password = document.getElementById("loginPassword").value;
+  const emailInput = document.getElementById("loginEmail");
+  const passwordInput = document.getElementById("loginPassword");
+  const email = emailInput ? emailInput.value.trim().toLowerCase() : "";
+  const password = passwordInput ? passwordInput.value : "";
 
   // Clear any previous error
   showFormError("loginError", "");
+  showFormError("loginInfo", "");
 
   if (email === "" || password === "") {
     showFormError("loginError", "Please enter your email and password.");
     return;
+  }
+
+  const submitBtn = event.target ? event.target.querySelector("button[type='submit']") : null;
+  const originalBtnText = submitBtn ? submitBtn.textContent : "Login";
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Logging in...";
   }
 
   try {
@@ -24,32 +38,68 @@ export async function handleLogin(event) {
 
     if (!response.ok) {
       showFormError("loginError", data.error || "Invalid email or password.");
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+      }
       return;
     }
 
+    // Store auth credentials
     if (data.token) {
       localStorage.setItem("authToken", data.token);
     }
     localStorage.setItem("loggedIn", "true");
     localStorage.setItem("userEmail", email);
+    if (data.user && data.user.name) {
+      localStorage.setItem("userName", data.user.name);
+    }
+    if (data.user && data.user.role) {
+      localStorage.setItem("userRole", data.user.role);
+    }
     sessionStorage.clear();
 
     await updateNavbar();
     closeAuth();
+
+    // Show toast feedback and redirect to plagiarism checker
+    const toastMsg = document.getElementById("toastMsg");
+    const toast = document.getElementById("toast");
+    if (toastMsg && toast) {
+      toastMsg.textContent = "Login successful! Opening Check Assignment...";
+      toast.classList.add("show");
+    }
+
+    setTimeout(() => {
+      window.location.href = "CheckAssign.html";
+    }, 700);
+
   } catch (err) {
-    showFormError("loginError", "Server error. Please try again.");
+    console.error("Login request error:", err);
+    showFormError("loginError", "Could not connect to server. Please try again.");
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalBtnText;
+    }
   }
 }
 
-
-
+// =========================================
+// SIGNUP HANDLER
+// =========================================
 
 export async function handleSignup(event) {
   event.preventDefault();
-  const name = document.getElementById("signupName").value.trim();
-  const email = document.getElementById("signupEmail").value.trim().toLowerCase();
-  const password = document.getElementById("signupPassword").value;
-  const confirmPassword = document.getElementById("signupConfirm").value;
+  const nameInput = document.getElementById("signupName");
+  const emailInput = document.getElementById("signupEmail");
+  const passwordInput = document.getElementById("signupPassword");
+  const confirmInput = document.getElementById("signupConfirm");
+
+  const name = nameInput ? nameInput.value.trim() : "";
+  const email = emailInput ? emailInput.value.trim().toLowerCase() : "";
+  const password = passwordInput ? passwordInput.value : "";
+  const confirmPassword = confirmInput ? confirmInput.value : "";
 
   // Clear any previous error
   showFormError("signupError", "");
@@ -75,6 +125,13 @@ export async function handleSignup(event) {
     return;
   }
 
+  const submitBtn = event.target ? event.target.querySelector("button[type='submit']") : null;
+  const originalBtnText = submitBtn ? submitBtn.textContent : "Create Account";
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Creating Account...";
+  }
+
   const newUser = {
     name: name,
     email: email,
@@ -92,41 +149,54 @@ export async function handleSignup(event) {
 
     if (!signupRes.ok) {
       showFormError("signupError", signupData.error || "Signup failed. Please try again.");
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+      }
       return;
     }
 
-    // ✅ Server returns a JWT token on successful registration — auto-login directly!
-    // This avoids user having to manually login after signup.
+    // Auto-login with returned token
     if (signupData.token) {
       localStorage.setItem("authToken", signupData.token);
     }
     localStorage.setItem("loggedIn", "true");
     localStorage.setItem("userEmail", email);
+    localStorage.setItem("userName", name);
     sessionStorage.clear();
 
-    document.getElementById("signupForm").reset();
+    const signupForm = document.getElementById("signupForm");
+    if (signupForm) signupForm.reset();
 
     await updateNavbar();
     closeAuth();
 
+    // Show toast feedback and redirect
+    const toastMsg = document.getElementById("toastMsg");
+    const toast = document.getElementById("toast");
+    if (toastMsg && toast) {
+      toastMsg.textContent = "Account created! Opening Check Assignment...";
+      toast.classList.add("show");
+    }
+
+    setTimeout(() => {
+      window.location.href = "CheckAssign.html";
+    }, 700);
+
   } catch (err) {
-    showFormError("signupError", "Server error. Please try again.");
+    console.error("Signup request error:", err);
+    showFormError("signupError", "Could not connect to server. Please try again.");
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalBtnText;
+    }
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+// =========================================
+// PASSWORD RESET HANDLERS
+// =========================================
 
 export async function handleSendResetCode(event) {
   if (event && event.preventDefault) event.preventDefault();
@@ -224,9 +294,13 @@ export async function resetPassword(event) {
   }
 }
 
+// =========================================
+// UTILITY FUNCTIONS
+// =========================================
 
 export function togglePassword(inputId, button) {
   const passwordInput = document.getElementById(inputId);
+  if (!passwordInput) return;
   if (passwordInput.type === "password") {
     passwordInput.type = "text";
     button.setAttribute("aria-label", "Hide password");
@@ -236,21 +310,34 @@ export function togglePassword(inputId, button) {
   }
 }
 
-
 export function logoutUser() {
   localStorage.removeItem("authToken");
   localStorage.removeItem("loggedIn");
   localStorage.removeItem("userEmail");
+  localStorage.removeItem("userName");
+  localStorage.removeItem("userRole");
   sessionStorage.clear();
 
   updateNavbar();
+
+  const toastMsg = document.getElementById("toastMsg");
+  const toast = document.getElementById("toast");
+  if (toastMsg && toast) {
+    toastMsg.textContent = "Logged out successfully.";
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 2000);
+  }
 }
 
+// =========================================
+// NAVBAR AUTH STATE UPDATE
+// =========================================
 
 export async function updateNavbar() {
   const token = localStorage.getItem("authToken");
   const loggedIn = localStorage.getItem("loggedIn") === "true";
   const userEmail = localStorage.getItem("userEmail");
+  const userName = localStorage.getItem("userName");
   const loginButton = document.getElementById("loginNavButton");
   const signupButton = document.getElementById("signupNavButton");
   const profileWrap = document.getElementById("profileWrap");
@@ -260,8 +347,21 @@ export async function updateNavbar() {
   const mobileProfileWrap = document.getElementById("mobileProfileWrap");
   const mobileProfileButton = document.getElementById("mobileProfileButton");
 
-  if (loggedIn && (token || userEmail !== null)) {
-    // If JWT token exists, verify with backend
+  if (loggedIn && (token || userEmail)) {
+    const displayName = userName || userEmail || "U";
+    const firstLetter = displayName.charAt(0).toUpperCase();
+
+    // Show logged-in UI immediately so there is no flickering
+    if (loginButton !== null) loginButton.style.display = "none";
+    if (signupButton !== null) signupButton.style.display = "none";
+    if (profileWrap !== null) profileWrap.classList.add("show");
+    if (profileButton !== null) profileButton.textContent = firstLetter;
+    if (mobileLoginButton !== null) mobileLoginButton.style.display = "none";
+    if (mobileSignupButton !== null) mobileSignupButton.style.display = "none";
+    if (mobileProfileWrap !== null) mobileProfileWrap.classList.add("show");
+    if (mobileProfileButton !== null) mobileProfileButton.textContent = firstLetter;
+
+    // Background verification if token exists
     if (token) {
       try {
         const verifyRes = await fetch(`${API_BASE}/auth/verify`, {
@@ -269,33 +369,25 @@ export async function updateNavbar() {
         });
         if (verifyRes.ok) {
           const verifyData = await verifyRes.json();
-          const firstLetter = (verifyData.user.name || "U").charAt(0).toUpperCase();
-          if (loginButton !== null) loginButton.style.display = "none";
-          if (signupButton !== null) signupButton.style.display = "none";
-          if (profileWrap !== null) profileWrap.classList.add("show");
-          if (profileButton !== null) profileButton.textContent = firstLetter;
-          if (mobileLoginButton !== null) mobileLoginButton.style.display = "none";
-          if (mobileSignupButton !== null) mobileSignupButton.style.display = "none";
-          if (mobileProfileWrap !== null) mobileProfileWrap.classList.add("show");
-          if (mobileProfileButton !== null) mobileProfileButton.textContent = firstLetter;
-          return;
-        } else {
-          // Token is invalid/expired
+          if (verifyData.user && verifyData.user.name) {
+            const letter = verifyData.user.name.charAt(0).toUpperCase();
+            if (profileButton !== null) profileButton.textContent = letter;
+            if (mobileProfileButton !== null) mobileProfileButton.textContent = letter;
+            localStorage.setItem("userName", verifyData.user.name);
+          }
+        } else if (verifyRes.status === 401 || verifyRes.status === 403) {
+          // Token is genuinely invalid on server
           localStorage.removeItem("authToken");
           localStorage.removeItem("loggedIn");
           localStorage.removeItem("userEmail");
+          localStorage.removeItem("userName");
           updateNavbar();
-          return;
         }
       } catch (err) {
-        // Network fallback to email check if offline
+        // Network temporary disconnect: do not wipe user auth state
+        console.warn("Auth verify network notice:", err.message);
       }
     }
-
-    // No valid token — clear stale auth state
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("loggedIn");
-    localStorage.removeItem("userEmail");
   } else {
     if (loginButton !== null) loginButton.style.display = "";
     if (signupButton !== null) signupButton.style.display = "";
@@ -306,9 +398,6 @@ export async function updateNavbar() {
   }
 }
 
-
-
-
 export function closeAuth() {
   const authModal = document.getElementById("authModal");
   if (authModal !== null) {
@@ -317,13 +406,6 @@ export function closeAuth() {
     document.body.classList.remove("modal-open");
   }
 }
-
-
-
-
-// =========================================
-// SHOW / HIDE INLINE FORM ERRORS
-// =========================================
 
 export function showFormError(elementId, message) {
   const el = document.getElementById(elementId);
