@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
 
 /* =========================================================
    ALL IMPORTS MUST BE AT TOP (ESM strict requirement)
@@ -1391,7 +1391,7 @@ async function compareTwoDocuments(fileA, fileB, textA, textB, filterOptions) {
     }
   }
 
-  const commonPhrases = extractCommonPhrases(matchesA, filteredA, filteredB);
+  let commonPhrases = extractCommonPhrases(matchesA, filteredA, filteredB);
   let typosA = [];
   let typosB = [];
   try {
@@ -1406,6 +1406,74 @@ async function compareTwoDocuments(fileA, fileB, textA, textB, filterOptions) {
 
   const matchSecCount = matchesA.length > 0 ? matchesA.length : (score > 0 ? Math.max(1, commonPhrases.length) : 0);
   const diffSecCount = diffs.length > 0 ? diffs.length : Math.max(0, chunksA.length - matchSecCount);
+  /* -------------------------------------------------------
+     BACKEND API CALL — /api/check-similarity
+     Uses the authoritative server-side plagiarism engine.
+     If backend is unreachable, local results are kept as-is.
+  ------------------------------------------------------- */
+  try {
+    const similarityRes = await fetch(API_BASE + '/api/check-similarity', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        textA: filteredA,
+        textB: filteredB,
+        options: {
+          excludeReferences: filterOptions.excludeReferences,
+          excludeQuotes: filterOptions.excludeQuotes,
+          excludeSmallMatches: filterOptions.excludeSmallMatches
+        }
+      })
+    });
+    if (similarityRes.ok) {
+      const apiData = await similarityRes.json();
+      if (apiData && apiData.result) {
+        const r = apiData.result;
+        if (typeof r.similarity === 'number')          score    = r.similarity;
+        if (Array.isArray(r.filefirstmatches))         matchesA = r.filefirstmatches;
+        if (Array.isArray(r.filesecondmatches))        matchesB = r.filesecondmatches;
+        if (Array.isArray(r.spellingMistakesA))        typosA   = r.spellingMistakesA;
+        if (Array.isArray(r.spellingMistakesB))        typosB   = r.spellingMistakesB;
+        if (Array.isArray(r.commonPhrases))            commonPhrases = r.commonPhrases;
+      }
+    }
+  } catch (apiErr) {
+    console.warn('Backend /api/check-similarity unreachable, using local results:', apiErr.message);
+  }
+
+  /* -------------------------------------------------------
+     BACKEND API CALL — /api/spellcheck (only if not already populated)
+  ------------------------------------------------------- */
+  if (typosA.length === 0 && filteredA.trim().length > 0) {
+    try {
+      const spellResA = await fetch(API_BASE + '/api/spellcheck', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: filteredA, docLabel: fileA.name })
+      });
+      if (spellResA.ok) {
+        const spellDataA = await spellResA.json();
+        if (spellDataA && Array.isArray(spellDataA.mistakes)) typosA = spellDataA.mistakes;
+      }
+    } catch (e) { console.warn('Backend /api/spellcheck (A) unreachable:', e.message); }
+  }
+  if (typosB.length === 0 && filteredB.trim().length > 0) {
+    try {
+      const spellResB = await fetch(API_BASE + '/api/spellcheck', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: filteredB, docLabel: fileB.name })
+      });
+      if (spellResB.ok) {
+        const spellDataB = await spellResB.json();
+        if (spellDataB && Array.isArray(spellDataB.mistakes)) typosB = spellDataB.mistakes;
+      }
+    } catch (e) { console.warn('Backend /api/spellcheck (B) unreachable:', e.message); }
+  }
+
+  // Recompute counts with final (possibly backend-updated) values
+  const finalMatchSecCount = matchesA.length > 0 ? matchesA.length : (score > 0 ? Math.max(1, commonPhrases.length) : 0);
+  const finalDiffSecCount  = diffs.length  > 0 ? diffs.length  : Math.max(0, chunksA.length - finalMatchSecCount);
 
   const reportObj = {
     id: "REP-" + Date.now().toString(36).toUpperCase() + "-" + Math.floor(100 + Math.random() * 900),
@@ -1414,8 +1482,8 @@ async function compareTwoDocuments(fileA, fileB, textA, textB, filterOptions) {
     files: [fileA.name, fileB.name],
     similarity: score,
     roundedscore: score,
-    matchingSections: matchSecCount,
-    differentSections: diffSecCount,
+    matchingSections: finalMatchSecCount,
+    differentSections: finalDiffSecCount,
     matchingPhrases: commonPhrases.length,
     commonPhrases: commonPhrases,
     similarwords: commonGrams.length > 0 ? commonGrams.length : matchSecCount,
@@ -1489,8 +1557,8 @@ async function compareTwoDocuments(fileA, fileB, textA, textB, filterOptions) {
           filenames: [fileA.name, fileB.name],
           type: currentMode,
           similarity: score,
-          matchingSections: matchSecCount,
-          differentSections: diffSecCount,
+          matchingSections: finalMatchSecCount,
+          differentSections: finalDiffSecCount,
           matchingPhrases: commonPhrases.length,
           spellingMistakes: typosA.length + typosB.length,
           date: new Date().toISOString(),
