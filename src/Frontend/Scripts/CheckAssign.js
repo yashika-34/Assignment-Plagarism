@@ -11,16 +11,17 @@ import { openCertificateModal } from "./certificateModal.js";
 
 
 /* =========================================================
-   LOGIN CHECK
+   LOGIN CHECK (NON-BLOCKING)
 ========================================================= */
 
-let currentuser = localStorage.getItem("loggedIn");
+const hasToken = localStorage.getItem("authToken");
+const hasLoggedInFlag = localStorage.getItem("loggedIn") === "true";
+const hasEmail = localStorage.getItem("userEmail");
 
-if (currentuser == null) {
-  showToast("Please log in first to access the plagiarism checker.", "warning");
+if (!hasToken && !hasLoggedInFlag && !hasEmail) {
   setTimeout(() => {
-    window.location.href = "index.html";
-  }, 1200);
+    showToast("Tip: Log in to save your reports to your history profile.", "info");
+  }, 1000);
 }
 
 
@@ -41,7 +42,7 @@ import {
   extractCommonPhrases,
   highlightTextWithMatchesAndTypos,
   extractFileText,
-} from "../../Backend/CheckBackend.js";
+} from "./CheckBackend.js";
 
 
 /* =========================================================
@@ -332,23 +333,36 @@ function renderFileList() {
     const badge = document.getElementById("fileCountBadgeSingle");
     const countText = document.getElementById("fileCountSingle");
 
-    if (container) {
-      addfiles(null, fileList, container);
-      if (badge) badge.textContent = fileList.length;
-      if (countText) countText.textContent = fileList.length + " files selected";
+    if (fileCountLeft) {
+      fileCountLeft.textContent = fileList.length + (fileList.length === 1 ? " file" : " files");
+    }
 
-      const removeButtons = container.querySelectorAll(".f-remove");
-      removeButtons.forEach(btn => {
-        btn.addEventListener("click", function (event) {
-          event.stopPropagation();
-          const index = Number(this.dataset.idx);
-          if (index >= 0 && index < fileList.length) {
-            fileList.splice(index, 1);
-          }
-          renderFileList();
-          checkButtonState();
+    if (container) {
+      if (fileList.length === 0) {
+        container.innerHTML = `<div class="empty-upload-hint" style="text-align:center;padding:48px 20px;color:var(--muted);font-size:14px;cursor:pointer;">
+          <p style="font-weight:700;font-size:15px;color:var(--ink);margin-bottom:6px;">No files selected yet</p>
+          <p style="font-size:13px;color:var(--muted);">Click here or the left card to browse, or drag & drop files.</p>
+        </div>`;
+        if (badge) badge.textContent = "0";
+        if (countText) countText.textContent = "0 files selected";
+      } else {
+        addfiles(null, fileList, container);
+        if (badge) badge.textContent = fileList.length;
+        if (countText) countText.textContent = fileList.length + (fileList.length === 1 ? " file selected" : " files selected");
+
+        const removeButtons = container.querySelectorAll(".f-remove");
+        removeButtons.forEach(btn => {
+          btn.addEventListener("click", function (event) {
+            event.stopPropagation();
+            const index = Number(this.dataset.idx);
+            if (index >= 0 && index < fileList.length) {
+              fileList.splice(index, 1);
+            }
+            renderFileList();
+            checkButtonState();
+          });
         });
-      });
+      }
     }
   }
 }
@@ -397,7 +411,7 @@ function checkButtonState() {
    ADD INCOMING FILES
 ========================================================= */
 
-const ALLOWED_EXTENSIONS = ["pdf", "docx", "doc", "txt", "pptx", "ppt"];
+const ALLOWED_EXTENSIONS = ["pdf", "docx", "doc", "txt", "pptx", "ppt", "rtf", "md", "odt", "tex", "html", "htm", "json", "csv", "c", "cpp", "java", "py", "js"];
 
 function handleIncomingFiles(files, isRightZone = false) {
   if (!files || files.length === 0) return;
@@ -451,8 +465,10 @@ function handleIncomingFiles(files, isRightZone = false) {
 ========================================================= */
 
 if (dropZoneLeft && fileInputLeft) {
-  dropZoneLeft.addEventListener("click", function () {
-    fileInputLeft.click();
+  dropZoneLeft.addEventListener("click", function (e) {
+    if (e.target.tagName !== "LABEL") {
+      fileInputLeft.click();
+    }
   });
 
   fileInputLeft.addEventListener("change", function () {
@@ -464,8 +480,10 @@ if (dropZoneLeft && fileInputLeft) {
 }
 
 if (dropZoneRight && fileInputRight) {
-  dropZoneRight.addEventListener("click", function () {
-    fileInputRight.click();
+  dropZoneRight.addEventListener("click", function (e) {
+    if (e.target.tagName !== "LABEL") {
+      fileInputRight.click();
+    }
   });
 
   fileInputRight.addEventListener("change", function () {
@@ -473,6 +491,15 @@ if (dropZoneRight && fileInputRight) {
       handleIncomingFiles(fileInputRight.files, true);
     }
     fileInputRight.value = "";
+  });
+}
+
+if (filePanelSingle && fileInputLeft) {
+  filePanelSingle.addEventListener("click", function (e) {
+    if (e.target.closest(".f-remove") || e.target.closest(".file-row")) return;
+    if (currentMode === "student" && fileList.length === 0) {
+      fileInputLeft.click();
+    }
   });
 }
 
