@@ -189,7 +189,7 @@ async function loadAndRenderReport() {
   const urlParams = new URLSearchParams(window.location.search);
   const reportId = urlParams.get("id");
 
-  if (reportId) {
+  if (reportId && reportId !== "undefined" && reportId !== "null") {
     try {
       const response = await fetch(`${API_BASE}/reports/` + encodeURIComponent(reportId), {
         headers: getAuthHeaders()
@@ -257,22 +257,22 @@ async function loadAndRenderReport() {
     }
   }
 
-    // 5. Try fetching latest report from /reports (if user logged in or public)
-    if (!report) {
-      try {
-        const response = await fetch(`${API_BASE}/reports`, {
-          headers: getAuthHeaders()
-        });
-        if (response.ok) {
-          const list = await response.json();
-          if (Array.isArray(list) && list.length > 0) {
-            report = list[list.length - 1]; // latest report in database
-          }
+  // 5. Try fetching latest report from /reports (if user logged in or public)
+  if (!report) {
+    try {
+      const response = await fetch(`${API_BASE}/reports`, {
+        headers: getAuthHeaders()
+      });
+      if (response.ok) {
+        const list = await response.json();
+        if (Array.isArray(list) && list.length > 0) {
+          report = list[0]; // latest report in database (sorted desc by date)
         }
-      } catch (e) {
-        console.warn("Reports API fallback error:", e);
       }
+    } catch (e) {
+      console.warn("Reports API fallback error:", e);
     }
+  }
 
   // If still no report, show dynamic empty state
   if (!report) {
@@ -347,8 +347,18 @@ async function renderReportDetails(report) {
 
   // Extract ALL sections (both matching and different / unique sections)
   currentSections = extractDocumentSections(textA, textB, matchesA);
-  const matchingSectionsCount = currentSections.filter(s => s.type === "matching").length;
-  const differentSectionsCount = currentSections.filter(s => s.type === "different").length;
+  const matchingSectionsCount = (report.matchingSections !== undefined && report.matchingSections !== null)
+    ? report.matchingSections
+    : currentSections.filter(s => s.type === "matching").length;
+  const differentSectionsCount = (report.differentSections !== undefined && report.differentSections !== null)
+    ? report.differentSections
+    : currentSections.filter(s => s.type === "different").length;
+  const totalPhrasesCount = (report.matchingPhrases !== undefined && report.matchingPhrases !== null)
+    ? report.matchingPhrases
+    : currentPhrases.length;
+  const totalTyposCount = (report.spellingMistakes !== undefined && report.spellingMistakes !== null)
+    ? report.spellingMistakes
+    : allTypos.length;
 
   // Total words
   const wordsA = textA ? textA.trim().split(/\s+/).length : 0;
@@ -389,7 +399,7 @@ async function renderReportDetails(report) {
 
   const reportIdSpan = document.getElementById("reportIdSpan");
   if (reportIdSpan) {
-    reportIdSpan.textContent = "ID: #" + (report.id || "REP-" + Math.floor(1000 + Math.random() * 9000));
+    reportIdSpan.textContent = "ID: #" + (report.customId || report.id || report._id || ("REP-" + Math.floor(1000 + Math.random() * 9000)));
   }
 
   // 1b. Update Filter Badges
@@ -451,10 +461,10 @@ async function renderReportDetails(report) {
   if (cardDifferentVal) cardDifferentVal.textContent = differentSectionsCount;
 
   const cardPhrasesVal = document.getElementById("cardPhrasesVal");
-  if (cardPhrasesVal) cardPhrasesVal.textContent = currentPhrases.length;
+  if (cardPhrasesVal) cardPhrasesVal.textContent = totalPhrasesCount;
 
   const cardTyposVal = document.getElementById("cardTyposVal");
-  if (cardTyposVal) cardTyposVal.textContent = allTypos.length;
+  if (cardTyposVal) cardTyposVal.textContent = totalTyposCount;
 
   const cardWordsVal = document.getElementById("cardWordsVal");
   if (cardWordsVal) cardWordsVal.textContent = totalWords.toLocaleString();
@@ -473,10 +483,10 @@ async function renderReportDetails(report) {
   if (countFilterDifferent) countFilterDifferent.textContent = differentSectionsCount;
 
   const tabPhrasesCount = document.getElementById("tabPhrasesCount");
-  if (tabPhrasesCount) tabPhrasesCount.textContent = currentPhrases.length;
+  if (tabPhrasesCount) tabPhrasesCount.textContent = totalPhrasesCount;
 
   const tabTyposCount = document.getElementById("tabTyposCount");
-  if (tabTyposCount) tabTyposCount.textContent = allTypos.length;
+  if (tabTyposCount) tabTyposCount.textContent = totalTyposCount;
 
   // 5. Render Documents with Highlights
   const toggleMatches = document.getElementById("toggleMatches");

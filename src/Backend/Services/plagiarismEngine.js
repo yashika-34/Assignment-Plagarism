@@ -245,6 +245,133 @@ async function compareDocuments(textA, textB, options = {}) {
     };
   }
 
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+const ENGINE_COMMON_TYPOS = {
+  diffrent: "different",
+  differnt: "different",
+  mistka: "mistake",
+  mistak: "mistake",
+  plagarism: "plagiarism",
+  plagerism: "plagiarism",
+  documnt: "document",
+  progamming: "programming",
+  programing: "programming",
+  algoritm: "algorithm",
+  teh: "the",
+  recieve: "receive",
+  seperate: "separate",
+  definately: "definitely",
+  definatly: "definitely",
+  occured: "occurred",
+  occurance: "occurrence",
+  untill: "until",
+  wierd: "weird",
+  goverment: "government",
+  enviroment: "environment",
+  recommand: "recommend",
+  acheive: "achieve",
+  accross: "across",
+  basicly: "basically",
+  begining: "beginning",
+  calender: "calendar",
+  embarass: "embarrass",
+  guarentee: "guarantee",
+  happend: "happened",
+  interupt: "interrupt",
+  knowlege: "knowledge",
+  neccessary: "necessary",
+  necesary: "necessary",
+  noticable: "noticeable",
+  peice: "piece",
+  privilege: "privilege",
+  publically: "publicly",
+  refered: "referred",
+  relevent: "relevant",
+  similer: "similar",
+  succesful: "successful",
+  suprise: "surprise",
+  tommorow: "tomorrow",
+  truely: "truly",
+  unfortunatly: "unfortunately",
+  efficently: "efficiently"
+};
+
+function buildFuzzyTypoMap(wordsA, wordsB) {
+  const mapA = new Map();
+  const mapB = new Map();
+  const setA = new Set(wordsA);
+  const setB = new Set(wordsB);
+
+  // 1. Direct typo normalization
+  for (const w of setA) {
+    if (ENGINE_COMMON_TYPOS[w]) mapA.set(w, ENGINE_COMMON_TYPOS[w]);
+  }
+  for (const w of setB) {
+    if (ENGINE_COMMON_TYPOS[w]) mapB.set(w, ENGINE_COMMON_TYPOS[w]);
+  }
+
+  // 2. Cross-document typo tolerance (Levenshtein distance 1 for 4-7 chars, <=2 for 8+ chars)
+  for (const wA of setA) {
+    if (setB.has(wA)) continue;
+    if (wA.length < 4) continue;
+    const canA = mapA.get(wA) || wA;
+
+    for (const wB of setB) {
+      if (setA.has(wB)) continue;
+      if (wB.length < 4) continue;
+      if (wA[0] !== wB[0]) continue;
+      const canB = mapB.get(wB) || wB;
+      if (canA === canB) continue;
+
+      const maxDist = Math.min(wA.length, wB.length) >= 7 ? 2 : 1;
+      if (Math.abs(wA.length - wB.length) <= maxDist) {
+        if (levenshtein(wA, wB) <= maxDist) {
+          const canonical = ENGINE_COMMON_TYPOS[wA] || ENGINE_COMMON_TYPOS[wB] || (wA.length >= wB.length ? wA : wB);
+          mapA.set(wA, canonical);
+          mapB.set(wB, canonical);
+          break;
+        }
+      }
+    }
+  }
+
+  return { mapA, mapB };
+}
+
+  // 2b. Typo-tolerant normalization: align words with typos across documents so spelling mistakes count towards similarity
+  const { mapA, mapB } = buildFuzzyTypoMap(
+    tokensA.map((t) => t.normalized),
+    tokensB.map((t) => t.normalized)
+  );
+  for (const t of tokensA) {
+    if (mapA.has(t.normalized)) t.normalized = mapA.get(t.normalized);
+  }
+  for (const t of tokensB) {
+    if (mapB.has(t.normalized)) t.normalized = mapB.get(t.normalized);
+  }
+
   // 3. Generate sliding shingles
   const shingleDataA = generateShingles(tokensA, nGramSize);
   const shingleDataB = generateShingles(tokensB, nGramSize);

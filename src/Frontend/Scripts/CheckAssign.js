@@ -1439,13 +1439,17 @@ async function compareTwoDocuments(fileA, fileB, textA, textB, filterOptions) {
   const diffSecCount = diffs.length > 0 ? diffs.length : Math.max(0, chunksA.length - matchSecCount);
   /* -------------------------------------------------------
      BACKEND API CALL — /api/check-similarity
-     Uses the authoritative server-side plagiarism engine.
-     If backend is unreachable, local results are kept as-is.
+     Uses the authoritative server-side plagiarism engine with a 3.5s timeout.
+     If backend takes >3.5s or is unreachable, fast local results are kept.
   ------------------------------------------------------- */
   try {
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timeoutId = controller ? setTimeout(() => controller.abort(), 3500) : null;
+
     const similarityRes = await fetch(API_BASE + '/api/check-similarity', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controller ? controller.signal : undefined,
       body: JSON.stringify({
         textA: filteredA,
         textB: filteredB,
@@ -1456,6 +1460,7 @@ async function compareTwoDocuments(fileA, fileB, textA, textB, filterOptions) {
         }
       })
     });
+    if (timeoutId) clearTimeout(timeoutId);
     if (similarityRes.ok) {
       const apiData = await similarityRes.json();
       if (apiData && apiData.result) {
@@ -1469,7 +1474,7 @@ async function compareTwoDocuments(fileA, fileB, textA, textB, filterOptions) {
       }
     }
   } catch (apiErr) {
-    console.warn('Backend /api/check-similarity unreachable, using local results:', apiErr.message);
+    console.warn('Backend /api/check-similarity fallback to fast local computation:', apiErr.message);
   }
 
   /* -------------------------------------------------------
@@ -1477,29 +1482,37 @@ async function compareTwoDocuments(fileA, fileB, textA, textB, filterOptions) {
   ------------------------------------------------------- */
   if (typosA.length === 0 && filteredA.trim().length > 0) {
     try {
+      const cA = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const tA = cA ? setTimeout(() => cA.abort(), 2000) : null;
       const spellResA = await fetch(API_BASE + '/api/spellcheck', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: cA ? cA.signal : undefined,
         body: JSON.stringify({ text: filteredA, docLabel: fileA.name })
       });
+      if (tA) clearTimeout(tA);
       if (spellResA.ok) {
         const spellDataA = await spellResA.json();
         if (spellDataA && Array.isArray(spellDataA.mistakes)) typosA = spellDataA.mistakes;
       }
-    } catch (e) { console.warn('Backend /api/spellcheck (A) unreachable:', e.message); }
+    } catch (e) { /* ignore fallback */ }
   }
   if (typosB.length === 0 && filteredB.trim().length > 0) {
     try {
+      const cB = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const tB = cB ? setTimeout(() => cB.abort(), 2000) : null;
       const spellResB = await fetch(API_BASE + '/api/spellcheck', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: cB ? cB.signal : undefined,
         body: JSON.stringify({ text: filteredB, docLabel: fileB.name })
       });
+      if (tB) clearTimeout(tB);
       if (spellResB.ok) {
         const spellDataB = await spellResB.json();
         if (spellDataB && Array.isArray(spellDataB.mistakes)) typosB = spellDataB.mistakes;
       }
-    } catch (e) { console.warn('Backend /api/spellcheck (B) unreachable:', e.message); }
+    } catch (e) { /* ignore fallback */ }
   }
 
   // Recompute counts with final (possibly backend-updated) values
@@ -1591,6 +1604,9 @@ async function compareTwoDocuments(fileA, fileB, textA, textB, filterOptions) {
           matchingSections: finalMatchSecCount,
           differentSections: finalDiffSecCount,
           matchingPhrases: commonPhrases.length,
+          commonPhrases: commonPhrases,
+          spellingMistakesA: typosA,
+          spellingMistakesB: typosB,
           spellingMistakes: typosA.length + typosB.length,
           date: new Date().toISOString(),
           textA: filteredA,
@@ -1990,16 +2006,22 @@ if (analyzeBtn) {
 
         if (fileList.length === 2) {
           updateProgress(80, "Comparing student assignments...");
-          await wait(500);
+          await wait(300);
 
           const comp = await compareTwoDocuments(fileList[0], fileList[1], fileTexts[0], fileTexts[1], filterOpts);
           comp.report.mode = "student";
+
+          updateProgress(95, "Finalizing report & highlights...");
+          await wait(200);
 
           sessionStorage.setItem("showsthedisplayornot", "true");
           sessionStorage.setItem("lastAnalysisResult", JSON.stringify(comp.report));
           sessionStorage.setItem("reportData", JSON.stringify(comp.report));
 
           renderUI(comp.report);
+
+          updateProgress(100, "Comparison complete!");
+          await wait(300);
 
           if (batchResultsWrap) batchResultsWrap.style.display = "none";
           if (pairResultsWrap) pairResultsWrap.style.display = "block";
@@ -2517,6 +2539,9 @@ async function displayResults(
           matchingSections: Array.isArray(result.commonPhrases) ? result.commonPhrases.length : 0,
           differentSections: dynamicDiffSections,
           matchingPhrases: Array.isArray(result.commonPhrases) ? result.commonPhrases.length : 0,
+          commonPhrases: result.commonPhrases || [],
+          spellingMistakesA: result.spellingMistakesA || [],
+          spellingMistakesB: result.spellingMistakesB || [],
           spellingMistakes: ((result.spellingMistakesA || []).length + (result.spellingMistakesB || []).length),
           date: new Date().toISOString(),
           textA: textA,

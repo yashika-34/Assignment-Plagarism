@@ -110,8 +110,24 @@ const STANDARD_PREFIXES = [
   "bio", "hyper", "ultra", "pseudo", "re", "un"
 ];
 
+const COMMON_TECH_TERMS = new Set([
+  "ai", "nlp", "ml", "cv", "llm", "llms", "rag", "api", "apis", "sdk", "sdks",
+  "ui", "ux", "gui", "cli", "dom", "css", "html", "sql", "nosql", "db",
+  "repo", "repos", "npm", "npx", "yarn", "git", "github", "gitlab", "devops",
+  "backend", "frontend", "fullstack", "middleware", "chatbot", "chatbots",
+  "dataset", "datasets", "pipeline", "pipelines", "runtime", "serverless",
+  "microservice", "microservices", "monorepo", "json", "yaml", "regex",
+  "oauth", "jwt", "auth", "async", "await", "webhook", "webhooks", "metadata",
+  "boolean", "varchar", "int", "float", "enum", "struct", "typedef", "const",
+  "restful", "graphql", "cors", "crud", "postgres", "mongodb", "redis", "docker",
+  "kubernetes", "k8s", "aws", "gcp", "azure", "linux", "unix", "macos", "windows",
+  "pytorch", "tensorflow", "keras", "scikit", "pandas", "numpy", "scipy",
+  "dotenv", "bcrypt", "express", "node", "nodejs", "react", "vue", "angular",
+  "vite", "webpack", "babel", "typescript", "javascript", "python", "java", "jupyter"
+]);
+
 /**
- * Checks if a word is a dynamic compound or prefix-derived term (e.g. multimodal, cybersecurity, codebase, hackathon).
+ * Checks if a word is a dynamic compound or prefix-derived term (e.g. multimodal, cybersecurity, codebase, chatbot).
  */
 function isCompoundOrDerivedWord(w, spells) {
   if (!w || !spells || spells.length === 0) return false;
@@ -129,13 +145,23 @@ function isCompoundOrDerivedWord(w, spells) {
   if (lower.endsWith("athon") && isWordInDictionary(lower.slice(0, -5), spells)) return true;
   if (lower.endsWith("thon") && isWordInDictionary(lower.slice(0, -4), spells)) return true;
 
-  // 3. Dynamic compound of two valid English words (e.g. dataset, codebase, workflow, lifecycle)
-  // Must be at least 8 chars long with parts at least 4 chars long to avoid fragments like "diff" + "rent"
-  if (lower.length >= 8) {
-    for (let i = 4; i <= lower.length - 4; i++) {
+  // 3. Dynamic compound of two valid English words (e.g. chatbot, dataset, codebase, workflow, lifecycle)
+  if (lower.length >= 7) {
+    for (let i = 4; i <= lower.length - 3; i++) {
       const w1 = lower.slice(0, i);
       const w2 = lower.slice(i);
-      if (w1 === "diff") continue;
+      if (w1 === "diff" || w1 === "mis" || w1 === "anti") continue;
+      if (isWordInDictionary(w1, spells) && isWordInDictionary(w2, spells)) return true;
+    }
+  }
+
+  // 4. Plural compound (e.g. chatbots, datasets, codebases, workflows)
+  if (lower.endsWith("s") && lower.length >= 8) {
+    const singular = lower.slice(0, -1);
+    for (let i = 4; i <= singular.length - 3; i++) {
+      const w1 = singular.slice(0, i);
+      const w2 = singular.slice(i);
+      if (w1 === "diff" || w1 === "mis" || w1 === "anti") continue;
       if (isWordInDictionary(w1, spells) && isWordInDictionary(w2, spells)) return true;
     }
   }
@@ -148,6 +174,8 @@ function isCompoundOrDerivedWord(w, spells) {
  */
 function isTechnicalOrAcronym(w) {
   if (!w || w.length < 2) return true;
+  const lower = w.toLowerCase();
+  if (COMMON_TECH_TERMS.has(lower)) return true;
   // Web protocols & network terms: http, https, ftp, www, url, uri, ip
   if (/^(https?|ftp|www|ssh|tcp|udp|ip|uri|url)$/i.test(w)) return true;
   // ALL CAPS: AI, RAG, PDF, POC, NB, AWS, CPU
@@ -182,7 +210,7 @@ function sanitizeTextForSpellCheck(text) {
 /**
  * Checks a single word dynamically against the loaded Hunspell dictionaries (US + GB).
  */
-function checkWordDynamically(rawWord, spells, fullText = "", matchIndex = -1) {
+function checkWordDynamically(rawWord, spells, fullText = "", matchIndex = -1, docLabel = "") {
   if (!rawWord || rawWord.length < 2) return null;
   if (/\d/.test(rawWord)) return null;
 
@@ -195,6 +223,22 @@ function checkWordDynamically(rawWord, spells, fullText = "", matchIndex = -1) {
   const lowerWord = rawWord.toLowerCase();
   if (COMMON_TYPOS[lowerWord]) {
     return COMMON_TYPOS[lowerWord];
+  }
+
+  // 1c. Words from filename / document label (e.g. author name "yashika", "garg" from "I am yashika garg.txt")
+  if (docLabel && typeof docLabel === "string") {
+    const filenameTokens = docLabel.toLowerCase().replace(/[^a-z0-9]/g, " ").split(/\s+/).filter(Boolean);
+    if (filenameTokens.includes(lowerWord)) {
+      return null;
+    }
+  }
+
+  // 1d. Words following self-introduction or author declarations ("I am", "My name is", "By")
+  if (matchIndex > 0 && fullText) {
+    const preceding = fullText.slice(Math.max(0, matchIndex - 30), matchIndex).toLowerCase();
+    if (/\b(i am|my name is|name is|author|by)\s+([a-z\s]{0,20})$/i.test(preceding)) {
+      return null;
+    }
   }
 
   // 2. File extensions (e.g. README.md, index.html, server.js)
@@ -293,7 +337,7 @@ async function detectSpellingMistakes(text, docLabel = "Document", options = {})
 
   while ((match = wordRegex.exec(sanitizedText)) !== null) {
     const rawWord = match[0];
-    const suggestion = checkWordDynamically(rawWord, spells, text, match.index);
+    const suggestion = checkWordDynamically(rawWord, spells, text, match.index, docLabel);
 
     if (suggestion) {
       let formattedSuggestion = suggestion;
@@ -338,7 +382,7 @@ function detectSpellingMistakesSync(text, docLabel = "Document") {
 
   while ((match = wordRegex.exec(sanitizedText)) !== null) {
     const rawWord = match[0];
-    const suggestion = checkWordDynamically(rawWord, _spellInstances, text, match.index);
+    const suggestion = checkWordDynamically(rawWord, _spellInstances, text, match.index, docLabel);
 
     if (suggestion) {
       let formattedSuggestion = suggestion;

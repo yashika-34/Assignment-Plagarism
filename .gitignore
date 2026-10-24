@@ -23,6 +23,9 @@ src/Frontend/Scripts/*
 !src/Frontend/Scripts/profile.js
 !src/Frontend/Scripts/config.js
 !src/Frontend/Scripts/toast.js
+!src/Frontend/Scripts/CheckBackend.js
+!src/Frontend/Scripts/SpellChecker.js
+!src/Frontend/Scripts/certificateModal.js
 
 src/Frontend/Templates/*
 !src/Frontend/Templates/.gitkeep

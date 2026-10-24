@@ -726,26 +726,40 @@ function fillReportData(record) {
   }
 
   const openFullReportBtn = document.getElementById("openFullReportBtn");
+  const recId = record.customId || record.id || record._id || "";
   if (openFullReportBtn !== null) {
-    openFullReportBtn.href = "DetailedReport.html?id=" + encodeURIComponent(record.id);
+    openFullReportBtn.href = "DetailedReport.html?id=" + encodeURIComponent(recId);
+    openFullReportBtn.onclick = function() {
+      try {
+        sessionStorage.setItem("reportData", JSON.stringify(record));
+        sessionStorage.setItem("lastAnalysisResult", JSON.stringify(record));
+      } catch (e) {}
+    };
   }
 
   // Save in sessionStorage so DetailedReport.html can display it immediately
   try {
     sessionStorage.setItem("reportData", JSON.stringify(record));
+    sessionStorage.setItem("lastAnalysisResult", JSON.stringify(record));
   } catch (e) {}
 
   const matchesA = Array.isArray(record.filefirstmatches) ? record.filefirstmatches : [];
   const matchesB = Array.isArray(record.filesecondmatches) ? record.filesecondmatches : [];
 
-  const typosA = detectSpellingMistakes(record.textA || "", files[0] || "File A");
-  const typosB = detectSpellingMistakes(record.textB || "", files[1] || "File B");
-  const allTypos = typosA.concat(typosB);
+  const typosA = (Array.isArray(record.spellingMistakesA) && record.spellingMistakesA.length > 0)
+    ? record.spellingMistakesA
+    : detectSpellingMistakes(record.textA || "", files[0] || "File A");
+  const typosB = (Array.isArray(record.spellingMistakesB) && record.spellingMistakesB.length > 0)
+    ? record.spellingMistakesB
+    : detectSpellingMistakes(record.textB || "", files[1] || "File B");
+  const allTypos = (Array.isArray(record.allSpellingMistakes) && record.allSpellingMistakes.length > 0)
+    ? record.allSpellingMistakes
+    : typosA.concat(typosB);
 
   const panelABody = document.getElementById("panelABody");
   if (panelABody !== null) {
     if (record.textA) {
-      panelABody.innerHTML = highlightTextWithMatchesAndTypos(record.textA, matchesA, typosA);
+      panelABody.innerHTML = highlightTextWithMatchesAndTypos(record.textA, matchesA, typosA, { otherText: record.textB });
     } else {
       panelABody.innerHTML = "<p style='color:#8b90ad;font-style:italic;'>No text content saved for this file.</p>";
     }
@@ -754,14 +768,16 @@ function fillReportData(record) {
   const panelBBody = document.getElementById("panelBBody");
   if (panelBBody !== null) {
     if (record.textB) {
-      panelBBody.innerHTML = highlightTextWithMatchesAndTypos(record.textB, matchesB, typosB);
+      panelBBody.innerHTML = highlightTextWithMatchesAndTypos(record.textB, matchesB, typosB, { otherText: record.textA });
     } else {
       panelBBody.innerHTML = "<p style='color:#8b90ad;font-style:italic;'>No text content saved for this file.</p>";
     }
   }
 
   // Common phrases section in modal
-  const commonPhrases = extractCommonPhrases(matchesA, record.textA, record.textB);
+  const commonPhrases = (Array.isArray(record.commonPhrases) && record.commonPhrases.length > 0)
+    ? record.commonPhrases
+    : extractCommonPhrases(matchesA, record.textA, record.textB);
   const modalCommonPhrases = document.getElementById("modalCommonPhrases");
   if (modalCommonPhrases !== null) {
     if (commonPhrases.length === 0) {
