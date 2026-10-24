@@ -1031,6 +1031,9 @@ async function generatePdfReport() {
 
   const container = document.createElement("div");
   container.id = "assigncheck-pdf-export";
+  // IMPORTANT: html2canvas CANNOT capture visibility:hidden or off-screen elements.
+  // We use opacity:0 + fixed position so the element is in DOM/on-screen
+  // but invisible to the user during capture, then remove it immediately.
   container.style.cssText = `
     width: 760px;
     padding: 36px 40px;
@@ -1039,12 +1042,12 @@ async function generatePdfReport() {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
     line-height: 1.5;
     box-sizing: border-box;
-    position: absolute;
-    top: -99999px;
-    left: -99999px;
-    visibility: hidden;
-    overflow: hidden;
+    position: fixed;
+    top: 0;
+    left: -9999px;
+    opacity: 0;
     pointer-events: none;
+    z-index: -1;
   `;
 
   container.innerHTML = `
@@ -1126,10 +1129,10 @@ async function generatePdfReport() {
     </div>
   `;
 
-  // Cleanup helper — always removes the off-screen container from DOM
+  // Cleanup helper — always removes the invisible container from DOM
   function removePdfContainer() {
     try {
-      if (container && document.body.contains(container)) {
+      if (document.body.contains(container)) {
         document.body.removeChild(container);
       }
     } catch (_) {}
@@ -1147,9 +1150,6 @@ async function generatePdfReport() {
     };
 
     try {
-      // Briefly make visible so html2pdf can capture it
-      container.style.visibility = "visible";
-      container.style.top = "-99999px";
       await window.html2pdf().set(opt).from(container).save();
       showToast("Official PDF Report downloaded successfully!", "success");
     } catch (e) {
