@@ -1039,11 +1039,11 @@ async function generatePdfReport() {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
     line-height: 1.5;
     box-sizing: border-box;
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: -9999;
-    opacity: 1;
+    position: absolute;
+    top: -99999px;
+    left: -99999px;
+    visibility: hidden;
+    overflow: hidden;
     pointer-events: none;
   `;
 
@@ -1126,6 +1126,15 @@ async function generatePdfReport() {
     </div>
   `;
 
+  // Cleanup helper — always removes the off-screen container from DOM
+  function removePdfContainer() {
+    try {
+      if (container && document.body.contains(container)) {
+        document.body.removeChild(container);
+      }
+    } catch (_) {}
+  }
+
   document.body.appendChild(container);
 
   if (typeof window.html2pdf === "function") {
@@ -1133,27 +1142,27 @@ async function generatePdfReport() {
       margin: 10,
       filename: `AssignCheck_Report_${fileAName.replace(/[^a-zA-Z0-9_-]/g, "_")}.pdf`,
       image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true, allowTaint: true },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
     };
 
     try {
+      // Briefly make visible so html2pdf can capture it
+      container.style.visibility = "visible";
+      container.style.top = "-99999px";
       await window.html2pdf().set(opt).from(container).save();
       showToast("Official PDF Report downloaded successfully!", "success");
     } catch (e) {
       console.error("html2pdf failed:", e);
-      showToast("PDF generator failed. Triggering print dialog fallback.", "error");
+      showToast("PDF generator failed. Opening print dialog.", "warning");
       window.print();
     } finally {
-      if (document.body.contains(container)) {
-        document.body.removeChild(container);
-      }
+      removePdfContainer();
     }
   } else {
+    // Fallback: print
+    removePdfContainer();
     window.print();
-    if (document.body.contains(container)) {
-      document.body.removeChild(container);
-    }
   }
 }
 

@@ -42,3 +42,4 @@ src/Frontend/styles/*
 !src/Frontend/styles/index.css
 !src/Frontend/styles/checkAssign.css
 !src/Frontend/styles/detailedReport.css
+!src/Frontend/styles/certificate.css

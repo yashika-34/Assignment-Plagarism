@@ -30,8 +30,9 @@ export function openCertificateModal(report) {
     return;
   }
 
-  // Close any existing modal
-  closeCertificateModal();
+  // Remove any stale certificate backdrops in the DOM
+  const existing = document.querySelectorAll(".cert-modal-backdrop");
+  existing.forEach(el => el.remove());
 
   // 1. Extract Details
   const reportId = report.id || report.customId || report._id || ("REP-" + Date.now().toString(36).toUpperCase());
@@ -296,12 +297,13 @@ function handleKeydown(e) {
 export function closeCertificateModal() {
   if (activeModal && document.body.contains(activeModal)) {
     activeModal.classList.remove("active");
+    // Small delay so animation can play before removing
     setTimeout(() => {
-      if (document.body.contains(activeModal)) {
+      if (activeModal && document.body.contains(activeModal)) {
         document.body.removeChild(activeModal);
       }
       activeModal = null;
-    }, 200);
+    }, 150);
   }
   document.removeEventListener("keydown", handleKeydown);
 }
