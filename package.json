@@ -5,7 +5,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node tests/plagiarismEngine.test.js"
+    "test": "node tests/plagiarismEngine.test.js",
+    "test:api": "node tests/api.test.js",
+    "test:all": "node tests/plagiarismEngine.test.js && node tests/api.test.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

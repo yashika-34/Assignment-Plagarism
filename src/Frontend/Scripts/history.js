@@ -7,7 +7,7 @@ import {
   detectSpellingMistakes,
   extractCommonPhrases,
   highlightTextWithMatchesAndTypos
-} from "../../Backend/SpellChecker.js";
+} from "./SpellChecker.js";
 
 // =========================================
 // LOAD ALL HISTORY RECORDS

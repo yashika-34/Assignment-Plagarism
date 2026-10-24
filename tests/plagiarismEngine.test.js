@@ -7,9 +7,9 @@ const {
   tokenizeWithPositions,
   generateShingles,
   compareDocuments
-} = require("../src/Services/plagiarismEngine");
+} = require("../src/Backend/Services/plagiarismEngine");
 
-const { detectSpellingMistakesSync } = require("../src/Services/spellCheckService");
+const { detectSpellingMistakesSync } = require("../src/Backend/Services/spellCheckService");
 
 (async () => {
 

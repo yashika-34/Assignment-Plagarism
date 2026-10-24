@@ -9,12 +9,7 @@ node_modules/
 # 2. Ignore local database files
 db.json
 
-# 3. Ignore all files inside Backend but keep the folder structure
-src/Backend/*
-!src/Backend/.gitkeep
-!src/Backend/HomeBackend.js
-!src/Backend/CheckBackend.js
-!src/Backend/SpellChecker.js
+# 3. Backend MVC structure is tracked in git
 
 # 4. Ignore all files inside Frontend subfolders but keep the folder structure
 src/Frontend/Scripts/*
