@@ -1,172 +1,189 @@
+﻿![AssignCheck Banner](Assets/banner.jpg)
+
+<div align="center">
+
 # AssignCheck
 
-> **Detect Similarity. Evaluate Smarter. Not Harder.**
+**The most transparent plagiarism checker built for classrooms.**  
+Compare student submissions, match against teacher references, and see exactly what matched — backed by evidence, not black boxes.
 
-AssignCheck is a full-stack web application for detecting textual similarity and potential plagiarism between student assignments. It uses **symmetric Jaccard shingling** computed authoritatively on the server and generates detailed, side-by-side similarity reports.
+[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-assignment--plagarism--2.onrender.com-4f46e5?style=for-the-badge&labelColor=1e1b4b)](https://assignment-plagarism-2.onrender.com)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://mongodb.com/atlas)
+[![Express](https://img.shields.io/badge/Express-5.x-000000?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com)
+[![Tests](https://img.shields.io/badge/Tests-41_Passing-22c55e?style=for-the-badge&logo=checkmarx&logoColor=white)](./tests)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
+
+</div>
+
+---
+
+## 📸 Screenshots
+
+### 🏠 Home Page
+![Home Page](Assets/Screenshots/home.jpeg)
+
+### 📤 Student vs Student Mode
+![Student vs Student Upload](Assets/Screenshots/studentstudent.jpeg)
+
+### 👨‍🏫 Teacher vs Student Mode
+![Teacher vs Student Upload](Assets/Screenshots/teacherstudent.jpeg)
+
+### 📊 Similarity Results with Side-by-Side Diff
+![Similarity Results](Assets/Screenshots/result.jpeg)
+
+### 📚 Analysis History
+![Analysis History](Assets/Screenshots/history.jpeg)
+
+### 👤 User Profile Dashboard
+![User Profile](Assets/Screenshots/profile.jpeg)
 
 ---
 
 ## ✨ Features
 
-- 📄 Upload assignments in **PDF, DOCX or TXT** format
-- 🔍 **Student vs Student** pairwise comparison
-- 👨‍🏫 **Teacher Reference** mode — compare against an answer key
-- 📊 **Symmetric Jaccard Similarity** — `Sim(A, B)` always equals `Sim(B, A)`
-- 📐 **Directional Coverage** — shows how much of each document is covered by the other
-- 🟨 Color-coded text highlighting (matching phrases, typos, unique sections)
-- 📑 Detailed side-by-side inspection view with phrase navigator
-- 📚 Full analysis history per user account
-- 👤 User profile dashboard with statistics
-- 🔐 JWT-based authentication with role-based access control (student / teacher)
-- 🛡️ Secure password change (requires current password or OTP token)
-- 🧪 41 automated unit tests for the plagiarism engine
+| Feature | Description |
+|---|---|
+| 📄 **Multi-format Upload** | Supports PDF, DOCX, and TXT files via drag & drop or click-to-browse |
+| 🔍 **Student vs Student** | Pairwise similarity detection across any number of submissions |
+| 👨‍🏫 **Teacher Reference Mode** | Compare student work against an official answer key |
+| 🏫 **Classroom Batch Mode** | Evaluate entire class at once — peer collusion matrix included |
+| 📊 **Symmetric Jaccard Algorithm** | Sim(A,B) always equals Sim(B,A) — mathematically guaranteed |
+| 🟨 **Color-Coded Highlighting** | Matching, different, and unique phrases highlighted live in browser |
+| 🔤 **Typo-Tolerant Matching** | Spelling mistakes (Levenshtein ≤ 2) still count toward similarity |
+| 📑 **Detailed Side-by-Side Report** | Phrase navigator, section diff, match inspector |
+| 🎖️ **Originality Certificate** | Downloadable A4 PDF certificate with QR verification code |
+| 📥 **PDF Report Export** | Full analysis downloadable as formatted PDF |
+| 📚 **Full History** | All past analyses saved per user account with filter by mode |
+| 👤 **Profile Dashboard** | Stats: total analyses, avg similarity, documents checked |
+| 🔐 **JWT Authentication** | Secure login with role-based access (student / teacher) |
+| 🛡️ **Score Integrity** | Server recalculates similarity from raw text — client scores ignored |
+| ⚡ **Rate Limiting** | 30 auth attempts / 15 min; 500 general requests / 15 min |
 
 ---
 
-## 🛠️ Technology Stack
+## 🛠️ Tech Stack
 
 ### Frontend
-
 | Technology | Purpose |
 |---|---|
 | HTML5 / CSS3 / Vanilla JS (ES Modules) | UI structure, glassmorphic design, interactivity |
-| PDF.js (CDN) | Extract text from PDF files in browser |
-| Mammoth.js (CDN) | Extract text from DOCX files in browser |
-| html2pdf.js (CDN) | Export detailed reports as PDF |
+| PDF.js (CDN) | Extract text from PDF files in-browser |
+| Mammoth.js (CDN) | Extract text from DOCX files in-browser |
+| html2pdf.js (CDN) | Export reports and certificates as PDF |
 
 ### Backend
-
 | Technology | Purpose |
 |---|---|
-| Node.js + Express.js | REST API server |
-| MongoDB + Mongoose | Persistent data storage (users, reports, file results) |
+| Node.js 18+ + Express 5 | REST API server |
+| MongoDB + Mongoose | Persistent storage (users, reports, file data) |
 | bcrypt | Secure password hashing (10 salt rounds) |
-| jsonwebtoken (JWT) | Stateless authentication and role encoding |
-| express-rate-limit | Brute-force protection on auth endpoints |
-| dotenv | Environment variable management |
+| jsonwebtoken (JWT) | Stateless auth + role encoding |
+| express-rate-limit | Brute-force protection on all auth endpoints |
+| nspell + dictionary-en | Server-side spell check dictionary |
 
 ---
 
 ## 📂 Project Structure
 
-```text
+`	ext
 Assignment-Plagiarism/
 │
-├── server.js                       # Secure Express REST API + Mongoose models
+├── server.js                        # Express bootstrap: mounts routes, DB & static files
+├── render.yaml                      # Render.com auto-deploy configuration
 │
 ├── src/
-│   ├── Middleware/
-│   │   └── auth.js                 # JWT auth, role enforcement, password hashing
-│   ├── Services/
-│   │   ├── plagiarismEngine.js     # Authoritative Jaccard shingling engine (Node.js)
-│   │   └── spellCheckService.js    # Server-side typo detection service
-│   │
-│   ├── Backend/                    # Backward-compatible re-export adapters
-│   │   ├── CheckBackend.js         → re-exports Frontend/Scripts/CheckBackend.js
-│   │   ├── HomeBackend.js          → re-exports Frontend/Scripts/HomeBackend.js
-│   │   └── SpellChecker.js         → re-exports Frontend/Scripts/SpellChecker.js
-│   │
-│   └── Frontend/
-│       ├── Scripts/
-│       │   ├── config.js           # API base URL configuration
-│       │   ├── CheckBackend.js     # Client-side file extraction + safe DOM rendering
-│       │   ├── HomeBackend.js      # Login, signup, OTP-based password reset
-│       │   ├── SpellChecker.js     # Client-side typo highlighting
-│       │   ├── CheckAssign.js      # Main plagiarism checker page logic
-│       │   ├── detailedReport.js   # Side-by-side report viewer
-│       │   ├── history.js          # Analysis history page
-│       │   ├── profile.js          # User profile dashboard
-│       │   └── toast.js            # Toast notification system
-│       ├── Templates/
-│       │   ├── index.html          # Home / Login / Signup page
-│       │   ├── CheckAssign.html    # File upload and comparison page
-│       │   ├── DetailedReport.html # Detailed side-by-side report
-│       │   ├── history.html        # Analysis history page
-│       │   └── profile.html        # User profile page
-│       └── styles/                 # CSS stylesheets
+│   └── Backend/
+│       ├── Config/db.js             # MongoDB Atlas connection
+│       ├── Controllers/             # MVC controllers (api, auth, reports, filedata, users)
+│       ├── Middleware/              # JWT auth, rate limiter
+│       ├── Models/                  # Mongoose models (User, Report, FileData)
+│       ├── Routes/                  # Express route registration
+│       └── Services/
+│           ├── plagiarismEngine.js  # Authoritative Jaccard shingling + fuzzy typo alignment
+│           └── spellCheckService.js # Server-side typo detection with nspell
 │
-├── tests/
-│   └── plagiarismEngine.test.js    # 41 automated unit tests (all passing)
-│
-├── scripts/
-│   └── sanitize-db.js              # One-time DB credential sanitization
-│
-├── db.json                         # Sample seed data (demo accounts, sanitized)
-├── .env.example                    # Environment variable template (no real secrets)
-├── .gitignore                      # .env, node_modules, db.json excluded from git
-├── package.json                    # Scripts: start, dev, test
-└── README.md                       # This file
-```
+└── src/Frontend/
+    ├── Templates/                   # HTML pages (index, CheckAssign, DetailedReport, history, profile)
+    ├── styles/                      # CSS (index, checkAssign, detailedReport, history, profile, certificate)
+    └── Scripts/
+        ├── CheckAssign.js           # Main checker: upload, batch compare, progress, results UI
+        ├── CheckBackend.js          # File text extraction (PDF/DOCX/TXT), chunk building, Jaccard local
+        ├── detailedReport.js        # Side-by-side diff viewer, PDF export
+        ├── certificateModal.js      # Originality certificate generator with QR code
+        ├── history.js               # History page with filter and modal
+        ├── profile.js               # Profile dashboard + password change
+        ├── SpellChecker.js          # Client-side typo detection + fuzzy matching
+        └── toast.js                 # Toast notification system
+`
 
 ---
 
-## ⚙️ Prerequisites
+## ⚙️ Local Setup
 
+### Prerequisites
 - **Node.js v18+** → https://nodejs.org
-- **MongoDB** (local or Atlas cloud)
-  - Local: [MongoDB Community Server](https://www.mongodb.com/try/download/community)
-  - Cloud: [MongoDB Atlas](https://www.mongodb.com/atlas)
+- **MongoDB** (local or Atlas)
 
----
+### 1. Clone
 
-## 🚀 Installation & Setup
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/your-username/Assignment-Plagiarism.git
-cd Assignment-Plagiarism
-```
+`ash
+git clone https://github.com/yashika-34/Assignment-Plagarism.git
+cd Assignment-Plagarism
+`
 
 ### 2. Install dependencies
 
-```bash
+`ash
 npm install
-```
+`
 
-### 3. Configure environment variables
+### 3. Configure environment
 
-```bash
+`ash
 copy .env.example .env
-```
+`
 
-Edit `.env` and fill in your values:
+Edit .env:
 
-```env
+`env
 PORT=3000
 MONGODB_URI=mongodb://127.0.0.1:27017/assigncheck
 JWT_SECRET=your_long_random_secret_here
-```
+`
 
-> ⚠️ **Never commit your `.env` file.** It is already listed in `.gitignore`.
+> ⚠️ **Never commit your .env file.** It's already in .gitignore.
 
-### 4. Start the server
+### 4. Start
 
-```bash
+`ash
 npm start
-```
+`
 
-The server starts at: **http://localhost:3000**
-
-Open your browser and navigate to: **http://localhost:3000**
+Open: **http://localhost:3000**
 
 ---
 
 ## 🧪 Running Tests
 
-```bash
+`ash
+# 41 plagiarism engine unit tests
 npm test
-```
 
-**41 tests** covering:
-- Text normalization and tokenization
-- Shingle generation (including edge cases)
-- Identical, unrelated, and partially overlapping documents
-- **Symmetry**: `Sim(A, B) === Sim(B, A)` — mathematically verified
-- Directional document coverage
-- Word insertion resilience
-- Spelling mistake detection
-- Filter options (exclude quotes, exclude references)
+# 16 API integration tests
+npm run test:api
+
+# Both
+npm run test:all
+`
+
+**Test coverage:**
+- Text normalization & tokenization
+- Shingle generation (edge cases: short text, empty text)
+- Symmetry guarantee: Sim(A,B) === Sim(B,A) — mathematically verified
+- Identical / unrelated / partially overlapping documents
+- Fuzzy typo alignment (Levenshtein ≤ 2)
+- Filter options: exclude quotes, exclude references, exclude small matches
 - Server-side score validation (spoofing prevention)
 
 ---
@@ -175,70 +192,82 @@ npm test
 
 | Feature | Implementation |
 |---|---|
-| Password storage | bcrypt hashed (10 rounds), never stored in plain text |
+| Password storage | bcrypt hashed (10 rounds), never plain text |
 | Authentication | JWT Bearer tokens (7-day expiry) |
-| Password reset | Requires 6-digit time-limited OTP (15 min) or current password |
-| Route protection | `authenticateToken` middleware on all protected routes |
-| Student isolation | Students can only read/delete **their own** reports and files |
-| Teacher access | Teachers can view all reports and user data |
-| Score integrity | Server **recalculates** similarity from `textA` + `textB`; ignores client-submitted scores |
-| XSS prevention | File names rendered via `.textContent`, never `innerHTML` |
-| Rate limiting | 30 auth attempts per 15 min; 500 general requests per 15 min |
+| Password reset | 6-digit time-limited OTP (15 min) or current password |
+| Route protection | uthenticateToken middleware on all protected routes |
+| Student isolation | Students can only read/delete **their own** reports |
+| Teacher access | Teachers can view all reports and users |
+| Score integrity | Server **recalculates** from 	extA+	extB; ignores client scores |
+| XSS prevention | File names via .textContent, never innerHTML |
+| Rate limiting | 30 auth/15 min; 500 general/15 min |
 
 ---
 
 ## 📐 Algorithm: Symmetric Jaccard Similarity
 
-AssignCheck computes plagiarism using **sliding-window 4-word shingles** and the **Jaccard set similarity** formula:
+AssignCheck uses **sliding-window 4-gram shingles** with **Jaccard set similarity**:
 
-```
-Overall Similarity (A, B) = |shingles(A) ∩ shingles(B)| / |shingles(A) ∪ shingles(B)| × 100%
-```
+`
+Similarity(A, B) = |shingles(A) ∩ shingles(B)|  ×  100%
+                   ─────────────────────────────
+                   |shingles(A) ∪ shingles(B)|
+`
 
-This is **symmetric by definition**: `Sim(A, B) = Sim(B, A)` always.
+This is **symmetric by definition**: Sim(A, B) = Sim(B, A) always.
 
-Additionally, two **directional coverage** metrics are calculated:
+### Typo-Tolerant Matching
+Words with Levenshtein distance ≤ 1 (short words) or ≤ 2 (long words) are fuzzy-aligned before shingling, so spelling mistakes still contribute to the similarity score.
 
-```
-Coverage A→B  = |shingles(A) ∩ shingles(B)| / |shingles(A)| × 100%
-Coverage B→A  = |shingles(A) ∩ shingles(B)| / |shingles(B)| × 100%
-```
-
-### ⚠️ Limitations
-
-- **Short texts** (< 4 words) may produce 0 shingles or reduced shingles.
-- **Paraphrasing** at the word level reduces detected similarity — shingles require exact word sequences.
-- **Spell checker** is a curated ~170-word academic typo dictionary, not a full English dictionary.
-- **Similarity scores are estimates** of textual overlap — they do **not** constitute proof of academic misconduct.
+### Directional Coverage
+`
+Coverage A→B = |shingles(A) ∩ shingles(B)| / |shingles(A)| × 100%
+Coverage B→A = |shingles(A) ∩ shingles(B)| / |shingles(B)| × 100%
+`
 
 ---
 
 ## 🎭 Demo Accounts
 
-The database is seeded with two demo accounts (sanitized, no real credentials):
-
 | Role | Email | Password |
 |---|---|---|
-| Teacher | `teacher@example.edu` | `Teacher123!` |
-| Student | `student@example.edu` | `Student123!` |
+| Teacher | 	eacher@example.edu | Teacher123! |
+| Student | student@example.edu | Student123! |
 
 ---
 
 ## 📋 Supported File Formats
 
-| Format | Extraction Method |
+| Format | Method |
 |---|---|
-| `.txt` | Native browser `File.text()` API |
-| `.pdf` | PDF.js text layer extraction |
-| `.docx` | Mammoth.js raw text extraction |
+| .txt | Native File.text() API |
+| .pdf | PDF.js text layer extraction |
+| .docx | Mammoth.js raw text extraction |
 
-> Scanned PDF images (no text layer) will produce empty text and 0% similarity.
+> Scanned PDFs (image-only, no text layer) will return 0% similarity.
 
 ---
 
-## 🐞 Known Limitations & Future Work
+## 🚀 Deploy to Render
 
-1. No email SMTP integration — OTP codes are returned in the API response (suitable for dev/demo; add SMTP for production)
-2. Spell checker covers ~170 academic typos — a full Levenshtein dictionary is a planned enhancement
-3. PDF.js requires the CDN script to be loaded in the browser — offline environments need a local copy
-4. No admin panel UI — admin access is backend-only via direct API calls
+This repo includes a [ender.yaml](render.yaml) for one-click deployment:
+
+1. Fork this repo
+2. Go to [dashboard.render.com](https://dashboard.render.com) → **New Web Service**
+3. Connect your GitHub repo
+4. Render auto-detects ender.yaml — just add your env vars:
+   - MONGODB_URI → your MongoDB Atlas connection string
+   - JWT_SECRET → a long random secret
+5. Click **Deploy** ✅
+
+---
+
+## 📄 License
+
+MIT © 2024 AssignCheck
+
+---
+
+<div align="center">
+Made with ❤️ for academic integrity
+</div>
