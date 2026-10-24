@@ -1327,6 +1327,50 @@ function escapeHtml(str) {
 }
 
 /* =========================================================
+   FAST PEER SIMILARITY — local only, no API calls
+   Used for the O(n²) peer-collusion matrix in batch mode.
+   Same n-gram Jaccard algorithm as compareTwoDocuments but
+   synchronous and network-free so the matrix computes instantly.
+========================================================= */
+
+function fastPeerSimilarity(textA, textB, filterOptions = {}) {
+  try {
+    const fA = filterDocumentText(textA || "", {
+      excludeReferences: filterOptions.excludeReferences,
+      excludeQuotes: filterOptions.excludeQuotes
+    });
+    const fB = filterDocumentText(textB || "", {
+      excludeReferences: filterOptions.excludeReferences,
+      excludeQuotes: filterOptions.excludeQuotes
+    });
+
+    if (!fA.trim() || !fB.trim()) return 0;
+
+    const normA = fA.trim().toLowerCase().replace(/\s+/g, " ");
+    const normB = fB.trim().toLowerCase().replace(/\s+/g, " ");
+    if (normA === normB) return 100;
+
+    const gramSize = filterOptions.excludeSmallMatches ? 7 : 4;
+    const chunksA = createChunksLinear(fA, 100);
+    const chunksB = createChunksLinear(fB, 100);
+
+    for (let i = 0; i < chunksA.length; i++) chunksA[i].grams = buildthegrams(chunksA[i], gramSize);
+    for (let i = 0; i < chunksB.length; i++) chunksB[i].grams = buildthegrams(chunksB[i], gramSize);
+
+    // Symmetric Jaccard over chunk gram sets
+    const setA = new Set(chunksA.flatMap(c => c.grams || []));
+    const setB = new Set(chunksB.flatMap(c => c.grams || []));
+    let intersection = 0;
+    for (const g of setA) { if (setB.has(g)) intersection++; }
+    const union = setA.size + setB.size - intersection;
+    if (union === 0) return 0;
+    return Math.round((intersection / union) * 1000) / 10;
+  } catch (e) {
+    return 0;
+  }
+}
+
+/* =========================================================
    COMPARE TWO DOCUMENTS HELPER
 ========================================================= */
 
@@ -1921,20 +1965,31 @@ if (analyzeBtn) {
           window.scrollTo({ top: 0, behavior: "smooth" });
         } else {
           // Case B: MULTIPLE Students vs Teacher Reference (Classroom Batch Mode!)
-          updateProgress(70, "Evaluating all students against Teacher Reference...");
+          updateProgress(60, "Evaluating all students against Teacher Reference...");
           const studentComparisons = [];
 
-          for (let i = 0; i < studentFiles.length; i++) {
-            const comp = await compareTwoDocuments(studentFiles[i], teacherRefFile, studentTexts[i], teacherText, filterOpts);
-            studentComparisons.push({
-              studentFile: studentFiles[i],
-              similarity: comp.similarity,
-              report: comp.report,
-              studentText: studentTexts[i]
+          // Process student-vs-teacher in parallel batches of 3 to avoid overloading server
+          const BATCH_SIZE = 3;
+          for (let b = 0; b < studentFiles.length; b += BATCH_SIZE) {
+            const batchSlice = studentFiles.slice(b, b + BATCH_SIZE);
+            const batchTexts = studentTexts.slice(b, b + BATCH_SIZE);
+            const batchPct = 60 + Math.round((30 * Math.min(b + BATCH_SIZE, studentFiles.length)) / studentFiles.length);
+            updateProgress(batchPct, `Evaluating students ${b + 1}–${Math.min(b + BATCH_SIZE, studentFiles.length)} of ${studentFiles.length}...`);
+
+            const batchResults = await Promise.all(
+              batchSlice.map((sf, idx) => compareTwoDocuments(sf, teacherRefFile, batchTexts[idx], teacherText, filterOpts))
+            );
+            batchResults.forEach((comp, idx) => {
+              studentComparisons.push({
+                studentFile: batchSlice[idx],
+                similarity: comp.similarity,
+                report: comp.report,
+                studentText: batchTexts[idx]
+              });
             });
           }
 
-          updateProgress(85, "Cross-checking peer collusion among students...");
+          updateProgress(93, "Cross-checking peer collusion among students...");
           const matrix = [];
           for (let i = 0; i < studentFiles.length; i++) {
             matrix[i] = [];
@@ -1946,8 +2001,12 @@ if (analyzeBtn) {
               } else if (j < i) {
                 matrix[i][j + 1] = matrix[j][i + 1];
               } else {
-                const peerComp = await compareTwoDocuments(studentFiles[i], studentFiles[j], studentTexts[i], studentTexts[j], filterOpts);
-                matrix[i][j + 1] = peerComp.similarity;
+                // Fast local-only similarity for peer matrix (no API calls = instant)
+                matrix[i][j + 1] = fastPeerSimilarity(
+                  studentComparisons[i].studentText,
+                  studentComparisons[j].studentText,
+                  filterOpts
+                );
               }
             }
           }

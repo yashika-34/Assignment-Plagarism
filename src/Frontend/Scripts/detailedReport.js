@@ -1031,9 +1031,8 @@ async function generatePdfReport() {
 
   const container = document.createElement("div");
   container.id = "assigncheck-pdf-export";
-  // IMPORTANT: html2canvas CANNOT capture visibility:hidden or off-screen elements.
-  // We use opacity:0 + fixed position so the element is in DOM/on-screen
-  // but invisible to the user during capture, then remove it immediately.
+  // html2canvas REQUIRES the element to be on-screen (left:0, top:0) to render correctly.
+  // We hide it from user using a full-screen overlay placed in front, not by moving element off-screen.
   container.style.cssText = `
     width: 760px;
     padding: 36px 40px;
@@ -1044,10 +1043,9 @@ async function generatePdfReport() {
     box-sizing: border-box;
     position: fixed;
     top: 0;
-    left: -9999px;
-    opacity: 0;
+    left: 0;
+    z-index: 999997;
     pointer-events: none;
-    z-index: -1;
   `;
 
   container.innerHTML = `
@@ -1129,23 +1127,38 @@ async function generatePdfReport() {
     </div>
   `;
 
-  // Cleanup helper — always removes the invisible container from DOM
+  // Cleanup helper — always removes both overlay and container from DOM
   function removePdfContainer() {
     try {
-      if (document.body.contains(container)) {
-        document.body.removeChild(container);
-      }
+      if (overlay && document.body.contains(overlay)) document.body.removeChild(overlay);
+      if (document.body.contains(container)) document.body.removeChild(container);
     } catch (_) {}
   }
 
+  // Full-screen overlay to hide the capture container from the user
+  const overlay = document.createElement("div");
+  overlay.style.cssText = `
+    position: fixed; inset: 0;
+    background: rgba(15,23,42,0.92);
+    z-index: 999998;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 16px; font-family: sans-serif; font-weight: 600;
+    letter-spacing: 0.5px;
+  `;
+  overlay.innerHTML = '<div style="text-align:center"><div style="font-size:28px;margin-bottom:12px;">📄</div>Generating PDF Report...<br><small style="opacity:0.6;font-size:12px;">Please wait</small></div>';
+
+  document.body.appendChild(overlay);
   document.body.appendChild(container);
+
+  // Wait 2 frames so browser fully paints the container before html2canvas captures it
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
   if (typeof window.html2pdf === "function") {
     const opt = {
       margin: 10,
       filename: `AssignCheck_Report_${fileAName.replace(/[^a-zA-Z0-9_-]/g, "_")}.pdf`,
       image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true, allowTaint: true },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true, allowTaint: true, logging: false },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
     };
 
