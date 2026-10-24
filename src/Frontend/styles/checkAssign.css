@@ -690,9 +690,15 @@
       background: var(--bg-soft);
     }
 
-    .file-list:empty,
-    .file-list-scroll:empty {
+    .file-list:empty {
       display: none;
+    }
+
+    .file-list-scroll:empty {
+      display: flex;
+      min-height: 220px;
+      align-items: center;
+      justify-content: center;
     }
 
     .file-list::-webkit-scrollbar,

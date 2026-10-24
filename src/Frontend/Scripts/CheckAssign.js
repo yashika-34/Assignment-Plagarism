@@ -1,4 +1,4 @@
-﻿"use strict";
+"use strict";
 
 /* =========================================================
    ALL IMPORTS MUST BE AT TOP (ESM strict requirement)
@@ -373,10 +373,12 @@ function renderFileList() {
     }
 
     if (container) {
-      if (fileList.length === 0) {
-        container.innerHTML = `<div class="empty-upload-hint" style="text-align:center;padding:48px 20px;color:var(--muted);font-size:14px;cursor:pointer;">
-          <p style="font-weight:700;font-size:15px;color:var(--ink);margin-bottom:6px;">No files selected yet</p>
-          <p style="font-size:13px;color:var(--muted);">Click here or the left card to browse, or drag &amp; drop files.</p>
+        container.innerHTML = `<div class="empty-upload-hint" style="text-align:center;padding:36px 20px;color:var(--muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;">
+          <div style="width:48px;height:48px;border-radius:14px;background:rgba(79,70,229,0.08);color:var(--primary);display:grid;place-items:center;margin-bottom:4px;">
+            <svg style="width:24px;height:24px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <p style="font-weight:700;font-size:15px;color:var(--ink);margin:0;">No files uploaded yet</p>
+          <p style="font-size:13px;color:var(--muted);margin:0;">Drag &amp; drop files here, or click to browse</p>
         </div>`;
         if (badge) badge.textContent = "0";
         if (countText) countText.textContent = "0 files selected";
@@ -505,8 +507,13 @@ function handleIncomingFiles(files, isRightZone = false) {
 ========================================================= */
 
 if (dropZoneLeft && fileInputLeft) {
-  dropZoneLeft.addEventListener("click", function (e) {
-    if (e.target.tagName !== "LABEL") {
+  dropZoneLeft.addEventListener("click", function () {
+    fileInputLeft.click();
+  });
+
+  dropZoneLeft.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
       fileInputLeft.click();
     }
   });
@@ -520,8 +527,13 @@ if (dropZoneLeft && fileInputLeft) {
 }
 
 if (dropZoneRight && fileInputRight) {
-  dropZoneRight.addEventListener("click", function (e) {
-    if (e.target.tagName !== "LABEL") {
+  dropZoneRight.addEventListener("click", function () {
+    fileInputRight.click();
+  });
+
+  dropZoneRight.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
       fileInputRight.click();
     }
   });
@@ -547,7 +559,7 @@ if (filePanelSingle && fileInputLeft) {
    DRAG AND DROP HANDLERS (ROBUST SUPPORT & VISUAL CUES)
 ========================================================= */
 
-// Prevent default drag & drop behaviors across window so files don't open in browser tab
+// Prevent default drag & drop behaviors across window so browser doesn't open files in tab
 ["dragenter", "dragover", "dragleave", "drop"].forEach(eventName => {
   window.addEventListener(eventName, function (e) {
     e.preventDefault();
@@ -562,48 +574,44 @@ async function getFilesFromDataTransfer(dataTransfer) {
   const files = [];
   if (!dataTransfer) return files;
 
-  const items = dataTransfer.items;
-  let hasDirectory = false;
-
-  if (items && items.length > 0) {
-    try {
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.kind === "file") {
-          const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
-          if (entry && entry.isDirectory) {
-            hasDirectory = true;
-            break;
-          }
-        }
-      }
-    } catch (e) {
-      hasDirectory = false;
+  // 1. Direct files from DataTransfer (instant, synchronous, standard across all browsers)
+  if (dataTransfer.files && dataTransfer.files.length > 0) {
+    for (let i = 0; i < dataTransfer.files.length; i++) {
+      const file = dataTransfer.files[i];
+      if (file) files.push(file);
     }
   }
 
-  if (hasDirectory && items) {
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.kind === "file") {
-        const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
-        if (entry) {
-          await processEntry(entry, files);
-        } else {
+  // 2. Folder traversal via webkitGetAsEntry (if folders were dropped)
+  const items = dataTransfer.items;
+  if (items && items.length > 0) {
+    const dirEntries = [];
+    try {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item && item.kind === "file" && item.webkitGetAsEntry) {
+          const entry = item.webkitGetAsEntry();
+          if (entry && entry.isDirectory) {
+            dirEntries.push(entry);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Directory detection warning:", err);
+    }
+
+    if (dirEntries.length > 0) {
+      for (const dir of dirEntries) {
+        await processEntry(dir, files);
+      }
+    } else if (files.length === 0) {
+      // Fallback if dataTransfer.files was empty but items exist
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item && item.kind === "file") {
           const file = item.getAsFile ? item.getAsFile() : null;
           if (file) files.push(file);
         }
-      }
-    }
-  } else if (dataTransfer.files && dataTransfer.files.length > 0) {
-    for (let i = 0; i < dataTransfer.files.length; i++) {
-      files.push(dataTransfer.files[i]);
-    }
-  } else if (items && items.length > 0) {
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].kind === "file") {
-        const file = items[i].getAsFile ? items[i].getAsFile() : null;
-        if (file) files.push(file);
       }
     }
   }
@@ -659,9 +667,12 @@ function setupDropTarget(element, onDropCallback, highlightTargets = []) {
     targets.forEach(t => t.classList.remove("dragover"));
 
     try {
-      const droppedFiles = await getFilesFromDataTransfer(e.dataTransfer);
+      let droppedFiles = await getFilesFromDataTransfer(e.dataTransfer);
+      if ((!droppedFiles || droppedFiles.length === 0) && e.dataTransfer && e.dataTransfer.files) {
+        droppedFiles = Array.from(e.dataTransfer.files);
+      }
       if (droppedFiles && droppedFiles.length > 0) {
-        onDropCallback(droppedFiles);
+        onDropCallback(droppedFiles, e);
       }
     } catch (err) {
       console.error("Drop processing error:", err);
@@ -677,7 +688,7 @@ if (zoneLeftElem) {
   setupDropTarget(zoneLeftElem, (files) => handleIncomingFiles(files, false), [dropZoneLeft, zoneLeftElem]);
 }
 
-// 2. Right File Panel in Single Mode (Also accepts dropped student files)
+// 2. Right File Panel in Single Mode (Accepts dropped student files in Student vs Student mode)
 if (filePanelSingle) {
   setupDropTarget(filePanelSingle, (files) => {
     if (currentMode === "student") {
@@ -691,6 +702,25 @@ const zoneRightElem = document.getElementById("zoneRight");
 setupDropTarget(dropZoneRight, (files) => handleIncomingFiles(files, true), [dropZoneRight, zoneRightElem]);
 if (zoneRightElem) {
   setupDropTarget(zoneRightElem, (files) => handleIncomingFiles(files, true), [dropZoneRight, zoneRightElem]);
+}
+
+// 4. Upload Layout container (Catch drops anywhere within the upload section)
+if (uploadLayout) {
+  setupDropTarget(uploadLayout, (files, e) => {
+    if (currentMode === "student") {
+      handleIncomingFiles(files, false);
+    } else {
+      // In reference mode, check if dropped closer to the right side
+      if (zoneRightElem && e) {
+        const rightRect = zoneRightElem.getBoundingClientRect();
+        if (e.clientX >= rightRect.left) {
+          handleIncomingFiles(files, true);
+          return;
+        }
+      }
+      handleIncomingFiles(files, false);
+    }
+  }, [dropZoneLeft, zoneLeftElem]);
 }
 
 
@@ -4112,6 +4142,7 @@ function escapeHTML(value) {
 
 setProgressStep(1);
 
+renderFileList();
 checkButtonState();
 
 
