@@ -373,6 +373,7 @@ function renderFileList() {
     }
 
     if (container) {
+      if (fileList.length === 0) {
         container.innerHTML = `<div class="empty-upload-hint" style="text-align:center;padding:36px 20px;color:var(--muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;">
           <div style="width:48px;height:48px;border-radius:14px;background:rgba(79,70,229,0.08);color:var(--primary);display:grid;place-items:center;margin-bottom:4px;">
             <svg style="width:24px;height:24px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
