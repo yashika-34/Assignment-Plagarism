@@ -4,7 +4,9 @@ Is document mein pooray **AssignCheck** project ka folder structure, file archit
 
 ---
 
-## 🌳 Complete Directory & File Tree
+## 🌳 Complete Directory & File 
+
+Tree
 
 ```
 Assignment-Plagiarism/
@@ -22,12 +24,13 @@ Assignment-Plagiarism/
 ├── server.js                            # Express bootstrap (<60 lines): mounts routes, DB & static files
 │
 ├── Assets/                              # Static visual media & screenshots
-│   └── Screenshots/                     # UI screenshots for documentation
+│   └── Screenshots/                     # UI screenshots & visual diagrams
+│       ├── banner.jpg
 │       ├── history.jpeg
 │       ├── home.jpeg
+│       ├── how_it_works.jpg
 │       ├── profile.jpeg
 │       ├── result.jpeg
-│       ├── results.jpeg
 │       ├── studentstudent.jpeg
 │       └── teacherstudent.jpeg
 │
@@ -36,7 +39,8 @@ Assignment-Plagiarism/
 │
 ├── tests/                               # Automated Test Suites
 │   ├── api.test.js                      # End-to-end API test suite (16 tests, HTTP requests)
-│   └── plagiarismEngine.test.js         # Plagiarism engine & spellcheck unit tests (41 tests)
+│   ├── plagiarismEngine.test.js         # Plagiarism engine & spellcheck unit tests (41 tests)
+│   └── test_upload_flow.js              # File extraction & drag-and-drop validation (3 tests)
 │
 └── src/                                 # Main Source Code
     │

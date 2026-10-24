@@ -26,8 +26,9 @@ const staticOptions = {
   maxAge: "1h",
   etag: true
 };
+app.use("/src/Frontend", express.static(path.join(__dirname, "src/Frontend"), staticOptions));
+app.use("/Assets", express.static(path.join(__dirname, "Assets"), staticOptions));
 app.use(express.static(path.join(__dirname, "src/Frontend"), staticOptions));
-app.use(express.static(path.join(__dirname, "src"), staticOptions));
 app.use(express.static(path.join(__dirname, "src/Frontend/Templates"), staticOptions));
 
 // Root URL → redirect to the homepage

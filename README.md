@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 <img src="Assets/Screenshots/banner.jpg" alt="AssignCheck Banner" width="100%" />
 
@@ -24,7 +24,7 @@
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=flat-square&logo=mongodb&logoColor=white)](https://mongodb.com/atlas)
 [![JWT](https://img.shields.io/badge/JWT-Auth-000000?style=flat-square&logo=jsonwebtokens&logoColor=white)](https://jwt.io)
 [![Render](https://img.shields.io/badge/Deployed-Render-46e3b7?style=flat-square&logo=render&logoColor=white)](https://render.com)
-[![Tests](https://img.shields.io/badge/Tests-41%20Passing-22c55e?style=flat-square&logo=checkmarx&logoColor=white)](./tests)
+[![Tests](https://img.shields.io/badge/Tests-60%20Passing-22c55e?style=flat-square&logo=checkmarx&logoColor=white)](./tests)
 [![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-ff69b4?style=flat-square)](https://github.com/yashika-34/Assignment-Plagarism/pulls)
 
 <br/>
@@ -197,10 +197,11 @@ Assignment-Plagiarism/
 │
 ├── 📁 tests/
 │   ├── plagiarismEngine.test.js        # 41 engine unit tests ✅
+│   ├── test_upload_flow.js             # 3 file extraction tests ✅
 │   └── api.test.js                     # 16 API integration tests ✅
 │
 └── 📁 Assets/
-    └── Screenshots/                    # UI screenshots for docs
+    └── Screenshots/                    # UI screenshots & visual diagrams
 ```
 
 </details>
@@ -247,9 +248,10 @@ npm start
 ## 🧪 Tests
 
 ```bash
-npm test           # 41 plagiarism engine unit tests
-npm run test:api   # 16 API integration tests
-npm run test:all   # All 57 tests
+npm test              # 41 plagiarism engine unit tests
+npm run test:upload   # 3 file extraction & validation tests
+npm run test:api      # 16 API integration tests
+npm run test:all      # All 60 automated tests ✅
 ```
 
 <details>

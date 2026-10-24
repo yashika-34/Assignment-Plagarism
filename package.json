@@ -6,8 +6,10 @@
     "start": "node server.js",
     "dev": "node server.js",
     "test": "node tests/plagiarismEngine.test.js",
+    "test:upload": "node tests/test_upload_flow.js",
     "test:api": "node tests/api.test.js",
-    "test:all": "node tests/plagiarismEngine.test.js && node tests/api.test.js"
+    "test:all": "node tests/plagiarismEngine.test.js && node tests/test_upload_flow.js && node tests/api.test.js",
+    "db:sanitize": "node scripts/sanitize-db.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

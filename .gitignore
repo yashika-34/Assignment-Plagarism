@@ -1,45 +1,38 @@
-# 0. Ignore environment secrets (but allow the example template)
+# ==============================================================================
+# AssignCheck — Git Ignore Rules
+# ==============================================================================
+
+# Environment Secrets
 .env
 .env.*
 !.env.example
 
-# 1. Ignore standard environment/package folders
+# Dependencies
 node_modules/
+jspm_packages/
 
-# 2. Ignore local database files
-db.json
+# Logs & Runtime
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# 3. Backend MVC structure is tracked in git
+# OS & Editor Artifacts
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
-# 4. Ignore all files inside Frontend subfolders but keep the folder structure
-src/Frontend/Scripts/*
-!src/Frontend/Scripts/.gitkeep
-!src/Frontend/Scripts/CheckAssign.js
-!src/Frontend/Scripts/HomeBackend.js
-!src/Frontend/Scripts/HomeDesign.js
-!src/Frontend/Scripts/Homesignup.js
-!src/Frontend/Scripts/history.js
-!src/Frontend/Scripts/detailedReport.js
-!src/Frontend/Scripts/profile.js
-!src/Frontend/Scripts/config.js
-!src/Frontend/Scripts/toast.js
-!src/Frontend/Scripts/CheckBackend.js
-!src/Frontend/Scripts/SpellChecker.js
-!src/Frontend/Scripts/certificateModal.js
-
-src/Frontend/Templates/*
-!src/Frontend/Templates/.gitkeep
-!src/Frontend/Templates/index.html
-!src/Frontend/Templates/CheckAssign.html
-!src/Frontend/Templates/DetailedReport.html
-!src/Frontend/Templates/profile.html
-!src/Frontend/Templates/history.html
-
-src/Frontend/styles/*
-!src/Frontend/styles/.gitkeep
-!src/Frontend/styles/profile.css
-!src/Frontend/styles/history.css
-!src/Frontend/styles/index.css
-!src/Frontend/styles/checkAssign.css
-!src/Frontend/styles/detailedReport.css
-!src/Frontend/styles/certificate.css
+# Temporary, Cache & Coverage
+.cache/
+.temp/
+coverage/
+dist/
+build/
